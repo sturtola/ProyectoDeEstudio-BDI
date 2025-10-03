@@ -140,11 +140,11 @@ El sistema abarca la gestión completa del **intercambio de comisiones**, incluy
 Maecenas molestie lacus tincidunt, placerat dolor et, ullamcorper erat. Mauris tortor nisl, ultricies ac scelerisque nec, feugiat in nibh. Pellentesque interdum aliquam magna sit amet rutrum. 
 
 ### Diagrama relacional
-![diagrama_relacional](https://github.com/dovillegas/basesdatos_proyecto_estudio/blob/main/doc/image_relational.png)
+
 
 ### Diccionario de datos
 
-Acceso al documento [PDF](doc/diccionario_datos.pdf) del diccionario de datos.
+
 
 
 ## CAPÍTULO V: CONCLUSIONES
