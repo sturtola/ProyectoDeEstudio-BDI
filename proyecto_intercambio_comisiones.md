@@ -6,8 +6,8 @@
 
 *Universidad*: Universidad Nacional del Nordeste  
 *Facultad*: Facultad de Ciencias Exactas y Naturales y Agrimensura  
-*Carrera*: Licenciatura en Sistemas de Información
-*Asignatura*: Bases de Datos I (FaCENA-UNNE)
+*Carrera*: Licenciatura en Sistemas de Información  
+*Asignatura*: Base de Datos I  
 *Año Lectivo*: 2025
 
 **Integrantes**:
