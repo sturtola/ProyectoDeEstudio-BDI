@@ -146,7 +146,7 @@ El **Modelo Relacional**, expresado a través del Diagrama Entidad–Relación (
 
 En las páginas siguientes se presenta el Modelo Relacional del sistema **SIC-UNNE**, el cual muestra de manera gráfica las entidades definidas y sus relaciones en el contexto de la gestión académica y los procesos de intercambio de comisiones.
 
-![diagrama_relacional](docs/der_alquiler_pro.png)
+![diagrama_relacional](docs/der_SIC-UNNE.png)
 
 ### Diccionario de datos
 
