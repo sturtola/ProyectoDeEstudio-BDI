@@ -137,10 +137,16 @@ El sistema abarca la gestión completa del **intercambio de comisiones**, incluy
 
 ## CAPÍTULO IV: DESARROLLO DEL TEMA / PRESENTACIÓN DE RESULTADOS 
 
-Maecenas molestie lacus tincidunt, placerat dolor et, ullamcorper erat. Mauris tortor nisl, ultricies ac scelerisque nec, feugiat in nibh. Pellentesque interdum aliquam magna sit amet rutrum. 
+En este capítulo se exponen los datos y la información recolectada y organizada para el diseño del **SIC-UNNE (Sistema de Intercambio de Comisiones)**. El propósito central de este sistema es brindar una solución que permita ordenar y optimizar el proceso de intercambio de comisiones dentro de la Universidad Nacional del Nordeste, garantizando una gestión más ágil y confiable.
+
+Para su desarrollo se recurrió a distintas herramientas y metodologías de modelado de datos. Entre ellas, destacan los **Diagramas Entidad–Relación (DER)**, que facilitan la representación visual de las entidades, sus atributos y los vínculos que las relacionan. Esta herramienta resultó clave para identificar la estructura general de la base de datos, su comportamiento y las restricciones necesarias para preservar la integridad de la información.
 
 ### Diagrama relacional
+El **Modelo Relacional**, expresado a través del Diagrama Entidad–Relación (ER), constituye una representación conceptual de la base de datos que describe su organización lógica. En él se detallan las entidades principales, sus características más relevantes y las conexiones que mantienen entre sí.
 
+En las páginas siguientes se presenta el Modelo Relacional del sistema **SIC-UNNE**, el cual muestra de manera gráfica las entidades definidas y sus relaciones en el contexto de la gestión académica y los procesos de intercambio de comisiones.
+
+![diagrama_relacional](docs/der_alquiler_pro.png)
 
 ### Diccionario de datos
 
