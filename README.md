@@ -23,7 +23,7 @@ El objetivo de la aplicación (SIC) es brindar una herramienta digital que permi
 
 ### Motor de Base de Datos
 
-El motor de base de datos seleccionado para la implementación es: **[Completar: Ej. SQL Server, PostgreSQL, MySQL]**
+El motor de base de datos seleccionado para la implementación es: **SQL Server**
 
 ---
 
