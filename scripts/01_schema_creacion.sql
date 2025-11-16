@@ -11,103 +11,6 @@ GO
 USE SIC_UNNE;
 GO
 
--- Usuario
-CREATE TABLE Usuario (
-    id_usuario INT IDENTITY 
-        CONSTRAINT pk_id_usuario PRIMARY KEY,
-    nombre NVARCHAR (100) NOT NULL,
-    apellido NVARCHAR (100) NOT NULL,
-    documento INT NOT NULL,
-    correo NVARCHAR (100) NOT NULL,
-    contrasena NVARCHAR (50) NOT NULL,
-    estado BIT DEFAULT 0,
-    rol NVARCHAR (30) NOT NULL,
-    id_carrera INT 
-        CONSTRAINT fk_usuario_carrera FOREIGN KEY REFERENCES Carrera(id_carrera)
-)
-GO
-
--- Restricciones para Usuario
-
-ALTER TABLE Usuario
-ADD 
-    -- Documento y Correo deben ser únicos
-    CONSTRAINT uq_usuario_documento UNIQUE (documento),
-    CONSTRAINT uq_usuario_correo UNIQUE (correo),
-
-    CONSTRAINT ck_usuario_rol CHECK (rol IN ('Administrador', 'Estudiante', 'Verificador', 'Indefinido')),
-
-    -- Documento debe tener entre 6 y 8 dígitos
-    CONSTRAINT ck_usuario_documento CHECK (
-        LEN(CAST(documento AS NVARCHAR(10))) BETWEEN 6 AND 8
-    ),
-
-    -- Nombre y apellido: solo letras y más de 8 caracteres
-    CONSTRAINT ck_usuario_nombre CHECK (
-        nombre NOT LIKE '%[^A-Za-zÁÉÍÓÚáéíóúÑñ ]%' AND LEN(nombre) > 3
-    ),
-    CONSTRAINT ck_usuario_apellido CHECK (
-        apellido NOT LIKE '%[^A-Za-zÁÉÍÓÚáéíóúÑñ ]%'
-    ),
-
-    -- Correo con formato válido (simplificado)
-    CONSTRAINT ck_usuario_correo CHECK (
-        correo LIKE '_%@_%._%'
-    ),
-
-    -- Contraseña mínimo 8 caracteres
-    CONSTRAINT ck_usuario_contrasena CHECK (
-        LEN(contrasena) >= 8
-    ),
-
-    -- Estado solo puede ser 1 o 0
-    CONSTRAINT ck_usuario_estado CHECK (estado IN (0, 1));
-GO
-
--- Tabla Profesor
-
-CREATE TABLE Profesor (
-    id_profesor INT IDENTITY
-        CONSTRAINT pk_id_profesor PRIMARY KEY,
-    nombre NVARCHAR (100) NOT NULL,
-    apellido NVARCHAR (100) NOT NULL,
-    documento INT NOT NULL,
-    correo NVARCHAR (100) NOT NULL,
-    estado BIT DEFAULT 1
-)
-GO
-
--- Tabla Constancia (para rol estudiante)
-
-CREATE TABLE Constancia (
-    id_constancia INT
-       CONSTRAINT pk_id_constancia PRIMARY KEY
-       CONSTRAINT fk_constancia_usuario FOREIGN KEY REFERENCES Usuario(id_usuario),
-    constancia_url NVARCHAR(200) NOT NULL,
-    fecha_constancia DATE NOT NULL
-)
-GO
-
--- Restricciones para Constancia
-
-ALTER TABLE Constancia
-ADD 
-
-    -- Verifica que la fecha de constancia no sea futura y hasta 6 meses antes
-    CONSTRAINT ck_constancia_FechaConstancia CHECK (
-        fecha_constancia <= GETDATE()
-        AND fecha_constancia >= DATEADD(MONTH, -6, GETDATE())
-    ),
-
-    -- Verifica que la URL tenga formato de archivo válido (simplificada)
-    CONSTRAINT ck_constancia_urlFormato CHECK (
-        constancia_url LIKE '%.pdf' OR 
-        constancia_url LIKE '%.jpg' OR 
-        constancia_url LIKE '%.jpeg' OR 
-        constancia_url LIKE '%.png'
-    );
-GO
-
 -- Tabla Edificio
 
 CREATE TABLE Edificio (
@@ -159,6 +62,105 @@ ADD
     -- Nombre solo puede contener letras y debe ser mayor a 8 caracteres
     CONSTRAINT ck_carrera_nombre CHECK (
         nombre NOT LIKE '%[^A-Za-zÁÉÍÓÚáéíóúÑñ ]%' AND LEN(nombre) > 8
+    );
+GO
+
+-- Usuario
+CREATE TABLE Usuario (
+    id_usuario INT IDENTITY 
+        CONSTRAINT pk_id_usuario PRIMARY KEY,
+    nombre NVARCHAR (100) NOT NULL,
+    apellido NVARCHAR (100) NOT NULL,
+    documento INT NOT NULL,
+    correo NVARCHAR (100) NOT NULL,
+    --contrasena NVARCHAR (50) NOT NULL,
+    -- CAMBIO: De NVARCHAR(50) a VARBINARY(64) para guardar el HASH (SHA2-512)
+    contrasena VARBINARY(64) NOT NULL,
+    estado BIT DEFAULT 0,
+    rol NVARCHAR (30) NOT NULL,
+    id_carrera INT 
+        CONSTRAINT fk_usuario_carrera FOREIGN KEY REFERENCES Carrera(id_carrera)
+)
+GO
+
+-- Restricciones para Usuario
+
+ALTER TABLE Usuario
+ADD 
+    -- Documento y Correo deben ser únicos
+    CONSTRAINT uq_usuario_documento UNIQUE (documento),
+    CONSTRAINT uq_usuario_correo UNIQUE (correo),
+
+    CONSTRAINT ck_usuario_rol CHECK (rol IN ('Administrador', 'Estudiante', 'Verificador', 'Indefinido')),
+
+    -- Documento debe tener entre 6 y 8 dígitos
+    CONSTRAINT ck_usuario_documento CHECK (
+        LEN(CAST(documento AS NVARCHAR(10))) BETWEEN 6 AND 8
+    ),
+
+    -- Nombre y apellido: solo letras y más de 8 caracteres
+    CONSTRAINT ck_usuario_nombre CHECK (
+        nombre NOT LIKE '%[^A-Za-zÁÉÍÓÚáéíóúÑñ ]%' AND LEN(nombre) > 3
+    ),
+    CONSTRAINT ck_usuario_apellido CHECK (
+        apellido NOT LIKE '%[^A-Za-zÁÉÍÓÚáéíóúÑñ ]%'
+    ),
+
+    -- Correo con formato válido (simplificado)
+    CONSTRAINT ck_usuario_correo CHECK (
+        correo LIKE '_%@_%._%'
+    ),
+
+    -- Contraseña mínimo 8 caracteres (no se usa ahora por el hash)
+    --CONSTRAINT ck_usuario_contrasena CHECK (
+    --    LEN(contrasena) >= 8
+    --),
+
+    -- Estado solo puede ser 1 o 0
+    CONSTRAINT ck_usuario_estado CHECK (estado IN (0, 1));
+GO
+
+-- Tabla Profesor
+
+CREATE TABLE Profesor (
+    id_profesor INT IDENTITY
+        CONSTRAINT pk_id_profesor PRIMARY KEY,
+    nombre NVARCHAR (100) NOT NULL,
+    apellido NVARCHAR (100) NOT NULL,
+    documento INT NOT NULL,
+    correo NVARCHAR (100) NOT NULL,
+    estado BIT DEFAULT 1
+)
+GO
+
+-- Tabla Constancia (para rol estudiante)
+
+CREATE TABLE Constancia (
+    id_constancia INT
+       CONSTRAINT pk_id_constancia PRIMARY KEY
+       CONSTRAINT fk_constancia_usuario FOREIGN KEY REFERENCES Usuario(id_usuario),
+    constancia_url NVARCHAR(200) NOT NULL,
+    fecha_constancia DATE NOT NULL
+)
+GO
+
+-- Restricciones para Constancia
+
+ALTER TABLE Constancia
+ADD 
+
+    -- Verifica que la fecha de constancia no sea futura y hasta 6 meses antes
+    CONSTRAINT ck_constancia_FechaConstancia CHECK (
+        fecha_constancia <= GETDATE()
+        AND fecha_constancia >= DATEADD(MONTH, -6, GETDATE())
+    ),
+
+    -- Verifica que la URL tenga formato de archivo válido (simplificada)
+    CONSTRAINT ck_constancia_urlFormato CHECK (
+        constancia_url LIKE '%.pdf' OR 
+        constancia_url LIKE '%.jpg' OR 
+        constancia_url LIKE '%.jpeg' OR 
+        constancia_url LIKE '%.png'
     );
 GO
 
@@ -474,8 +476,8 @@ GO
 CREATE TABLE Reporte (
     id_reporte INT IDENTITY
         CONSTRAINT pk_reporte PRIMARY KEY,
-    emisor INT NULL
-        CONSTRAINT fk_reporte_verificador FOREIGN KEY REFERENCES Verificador(id_verificador),
+    emisor INT NULL 
+        CONSTRAINT fk_reporte_verificador FOREIGN KEY REFERENCES Usuario(id_usuario),
     receptor INT NOT NULL
         CONSTRAINT fk_reporte_usuario FOREIGN KEY REFERENCES Usuario(id_usuario),
     id_periodo INT NOT NULL

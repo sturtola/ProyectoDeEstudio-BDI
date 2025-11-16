@@ -34,7 +34,7 @@ El proyecto se organiza en la siguiente estructura de carpetas:
 ```plaintext
 /
 |
-+-- 📄 README.md (Este archivo)
++-- 📄 README.md
 |
 +-- 📁 documento/
 |   |
