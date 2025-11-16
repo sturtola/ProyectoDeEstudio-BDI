@@ -1,5 +1,5 @@
 /****************************************************************************************
-* PROYECTO:         SIC-UNNE (Bases de Datos I)
+* PROYECTO:         SIC-UNNE (Versión 2.0)
 * AUTOR:            [Grupo 9]
 * FECHA:            [05/11/2025]
 * DESCRIPCIÓN:
@@ -10,227 +10,160 @@
 USE SIC_UNNE;
 GO
 
-SET NOCOUNT ON;     -- Evita que SQL Server devuelva el conteo de filas afectadas
+--SET NOCOUNT ON;     -- Evita que SQL Server devuelva el conteo de filas afectadas
 SET XACT_ABORT ON;  -- Asegura que, si hay un error, la transacción completa haga ROLLBACK
 
-PRINT 'Iniciando el lote de carga de datos...';
+PRINT 'Iniciando: 02_carga_datos.sql...';
 PRINT '==================================================';
-PRINT GETDATE();
+PRINT 'Fecha: ' + CONVERT(VARCHAR, GETDATE(), 120);
 
 BEGIN TRY
     BEGIN TRAN CargaDatos;
 
-    -- Declaración de variables para IDs 
+    -- Declaración de variables para IDs
     DECLARE @idAdmin INT, @idVerif INT;
-    DECLARE @idEstudianteValido1 INT, @idEstudianteValido2 INT, @idEstudianteValido3 INT, @idEstudianteValido4 INT;
-    DECLARE @idEstudianteInvalido INT, @idEstudianteBloqueado INT;
+    DECLARE @idEst1_Gonzalez INT, @idEst2_Ramirez INT, @idEst3_Ibanez_Invalido INT;
     
     DECLARE @idEdificioCentral INT;
     DECLARE @idFacuIngenieria INT;
+    DECLARE @idCarreraLSI INT;
     DECLARE @idPeriodo_2C_2025 INT;
     DECLARE @idAsig_BD1 INT;
     DECLARE @idComision_BD1_A INT, @idComision_BD1_B INT;
+    DECLARE @idHorarioLunes INT, @idHorarioMiercoles INT;
+    DECLARE @idAula3 INT;
 
     /****************************************************************************************
-    * 1. TABLAS DE CONFIGURACIÓN (INDEPENDIENTES)
+    * 1. ESTRUCTURA ACADÉMICA (Respetando el orden de FKs)
     ****************************************************************************************/
-    PRINT 'Cargando: 1. Tablas de Configuración (Edificio, Periodo, Horario)...';
+    PRINT 'Cargando: 1. Estructura Académica (Edificio, Facultad, Carrera...).';
 
-    -- Edificio
-    INSERT INTO Edificio (direccion, nombre)
-    VALUES ('Av. Las Heras 727, Resistencia, Chaco', 'Campus Resistencia'),
-           ('Sargento Cabral 2139, Corrientes', 'Campus Corrientes');
-    
-    SET @idEdificioCentral = (SELECT id_edificio FROM Edificio WHERE nombre = 'Campus Resistencia');
+    -- 1.1. Estructura Física
+    INSERT INTO Edificio (direccion, nombre) VALUES ('Av. Las Heras 727, Resistencia, Chaco', 'Campus Resistencia');
+    SET @idEdificioCentral = SCOPE_IDENTITY();
 
-    -- Periodo
-    INSERT INTO Periodo (nombre, fecha_inicio, fecha_fin)
-    VALUES ('2do Cuatrimestre', '2025-08-01', '2025-12-20'); -- Asumimos un período actual
-    
-    SET @idPeriodo_2C_2025 = (SELECT id_periodo FROM Periodo WHERE nombre = '2do Cuatrimestre' AND YEAR(fecha_inicio) = 2025);
+    INSERT INTO Aula (nombre, id_edificio) VALUES ('Aula 3', @idEdificioCentral);
+    SET @idAula3 = SCOPE_IDENTITY();
 
-    -- Horario
-    INSERT INTO Horario (dia, hora_inicio, hora_fin, modalidad)
-    VALUES ('Lunes', '08:00:00', '10:00:00', 'Presencial'),
-           ('Miercoles', '08:00:00', '10:00:00', 'Presencial'),
-           ('Viernes', '16:00:00', '18:00:00', 'Virtual');
+    -- 1.2. Estructura Académica
+    INSERT INTO Facultad (nombre, ciudad, id_edificio) VALUES ('Facultad de Ingeniería', 'Resistencia', @idEdificioCentral);
+    SET @idFacuIngenieria = SCOPE_IDENTITY();
 
-    /****************************************************************************************
-    * 2. ESTRUCTURA ACADÉMICA (NIVEL 1)
-    ****************************************************************************************/
-    PRINT 'Cargando: 2. Estructura Académica N1 (Facultad, Aula, Asignatura)...';
+    INSERT INTO Carrera (nombre, id_facultad) VALUES ('Licenciatura en Sistemas de Información', @idFacuIngenieria);
+    SET @idCarreraLSI = SCOPE_IDENTITY();
 
-    -- Facultad
-    INSERT INTO Facultad (nombre, ciudad, id_edificio)
-    VALUES ('Facultad de Ingeniería', 'Resistencia', @idEdificioCentral),
-           ('Facultad de Ciencias Económicas', 'Resistencia', @idEdificioCentral);
-    
-    SET @idFacuIngenieria = (SELECT id_facultad FROM Facultad WHERE nombre = 'Facultad de Ingeniería');
+    INSERT INTO Periodo (nombre, fecha_inicio, fecha_fin) VALUES ('2do Cuatrimestre', '2025-08-01', '2025-12-20');
+    SET @idPeriodo_2C_2025 = SCOPE_IDENTITY();
 
-    -- Aula
-    INSERT INTO Aula (nombre, id_edificio)
-    VALUES ('Salón de Actos', @idEdificioCentral),
-           ('Aula 3', @idEdificioCentral);
+    INSERT INTO Asignatura (nombre, anio_dictado, id_periodo) VALUES ('Bases de Datos I', 'Tercer Año', @idPeriodo_2C_2025);
+    SET @idAsig_BD1 = SCOPE_IDENTITY();
 
-    -- Asignatura
-    INSERT INTO Asignatura (nombre, anio_dictado, id_periodo)
-    VALUES ('Bases de Datos I', 'Tercer Año', @idPeriodo_2C_2025),
-           ('Algebra y Geometría Analítica', 'Primer Año', @idPeriodo_2C_2025);
-    
-    SET @idAsig_BD1 = (SELECT id_asignatura FROM Asignatura WHERE nombre = 'Bases de Datos I');
-    
-    /****************************************************************************************
-    * 3. ESTRUCTURA ACADÉMICA (NIVEL 2)
-    ****************************************************************************************/
-    PRINT 'Cargando: 3. Estructura Académica N2 (Carrera, Comision)...';
-    
-    -- Carrera
-    INSERT INTO Carrera (nombre, id_facultad)
-    VALUES ('Licenciatura en Sistemas de Información', @idFacuIngenieria),
-           ('Contador Público', (SELECT id_facultad FROM Facultad WHERE nombre = 'Facultad de Ciencias Económicas'));
-
-    -- Comision (¡Importante para el TRIGER de apellido!)
     INSERT INTO Comision (nombre, letra_desde, letra_hasta, id_asignatura)
     VALUES ('Comisión A (A-M)', 'A', 'M', @idAsig_BD1),
            ('Comisión B (N-Z)', 'N', 'Z', @idAsig_BD1);
+    SET @idComision_BD1_A = (SELECT id_comision FROM Comision WHERE nombre = 'Comisión A (A-M)');
+    SET @idComision_BD1_B = (SELECT id_comision FROM Comision WHERE nombre = 'Comisión B (N-Z)');
+
+    -- 1.3. Horarios y Profesores
+    INSERT INTO Horario (dia, hora_inicio, hora_fin, modalidad) 
+    VALUES ('Lunes', '08:00:00', '10:00:00', 'Presencial'), ('Miercoles', '08:00:00', '10:00:00', 'Presencial');
+    SET @idHorarioLunes = (SELECT id_horario FROM Horario WHERE dia = 'Lunes');
+    SET @idHorarioMiercoles = (SELECT id_horario FROM Horario WHERE dia = 'Miercoles');
     
-    SET @idComision_BD1_A = (SELECT id_comision FROM Comision WHERE nombre = 'Comisión A (A-M)' AND id_asignatura = @idAsig_BD1);
-    SET @idComision_BD1_B = (SELECT id_comision FROM Comision WHERE nombre = 'Comisión B (N-Z)' AND id_asignatura = @idAsig_BD1);
+    INSERT INTO Horario_Comision (id_horario, id_comision, id_aula)
+    VALUES (@idHorarioLunes, @idComision_BD1_A, @idAula3),
+           (@idHorarioMiercoles, @idComision_BD1_A, @idAula3);
+           
+    INSERT INTO Profesor (nombre, apellido, documento, correo, estado)
+    VALUES ('Ricardo', 'Perez', 15111222, 'r.perez@prof.unne.edu.ar', 1);
 
     /****************************************************************************************
-    * 4. USUARIOS Y ROLES
+    * 2. USUARIOS (con HASHBYTES)
     ****************************************************************************************/
-    PRINT 'Cargando: 4. Usuarios y Roles...';
-
-    -- 4.1. Administrador
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, estado, rol)
-    VALUES ('Admin', 'Sistema', 9999999, 'admin@unne.edu.ar', HASHBYTES('SHA2_512', 'AdminPass123!'), 1, 'Administrador');
+    PRINT 'Cargando: 2. Usuarios (Todos nacen inactivos - estado 0)...';
+    
+    -- Admin (estado 0)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Admin', 'Sistema', 9999999, 'admin@unne.edu.ar', HASHBYTES('SHA2_512', 'AdminPass123!'), 'Administrador', NULL);
     SET @idAdmin = SCOPE_IDENTITY();
 
-    -- 4.2. Verificador
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, estado, rol)
-    VALUES ('Valeria', 'Verificadora', 8888888, 'verificador@unne.edu.ar', HASHBYTES('SHA2_512', 'VerifPass123!'), 1, 'Verificador');
+    -- Verificador (estado 0)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Valeria', 'Verificadora', 8888888, 'verificador@unne.edu.ar', HASHBYTES('SHA2_512', 'VerifPass123!'), 'Verificador', NULL);
     SET @idVerif = SCOPE_IDENTITY();
+
+    -- Estudiante 1 (VÁLIDO, 'G' para Com A)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Gabriel', 'Gonzalez', 30111222, 'g.gonzalez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst1_Gonzalez = SCOPE_IDENTITY();
     
-    INSERT INTO Verificador (id_verificador) VALUES (@idVerif);
-
-    -- 4.3. Estudiantes (Datos de Prueba)
-    -- El trigger tr_usuario_default_estado_por_rol pondrá estado = 0
+    -- Estudiante 2 (VÁLIDO, 'R' para Com B)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Romina', 'Ramirez', 31222333, 'r.ramirez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst2_Ramirez = SCOPE_IDENTITY();
     
-    PRINT 'Cargando Estudiantes (válidos)...';
-    
-    -- Estudiante 1 (VÁLIDO, Apellido con 'G'. Quiere cambiar de A->B)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Gabriel', 'Gonzalez', 30111222, 'g.gonzalez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteValido1 = SCOPE_IDENTITY();
-    
-    -- Estudiante 2 (VÁLIDO, Apellido con 'R'. Quiere cambiar de B->A)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Romina', 'Ramirez', 31222333, 'r.ramirez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteValido2 = SCOPE_IDENTITY();
+    -- Estudiante 3 (INVÁLIDO - Constancia Vencida)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Ines', 'Ibañez', 34555666, 'i.ibañez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst3_Ibanez_Invalido = SCOPE_IDENTITY();
 
-    -- Estudiante 3 (VÁLIDO, Apellido con 'C'. Quiere cambiar de A->B)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Carla', 'Cáceres', 32333444, 'c.caceres@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteValido3 = SCOPE_IDENTITY();
+    -- Activación Manual de Admin/Verificador (necesario por el DEFAULT 0)
+    PRINT 'Cargando: 2.1. Activación manual de Admin y Verificador...';
+    UPDATE Usuario SET estado = 1 WHERE id_usuario IN (@idAdmin, @idVerif);
 
-    -- Estudiante 4 (VÁLIDO, Apellido con 'S'. Quiere cambiar de B->A)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Sergio', 'Sosa', 33444555, 's.sosa@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteValido4 = SCOPE_IDENTITY();
-
-    PRINT 'Cargando Estudiantes (inválidos)...';
-    -- Estudiante 5 (INVÁLIDO - Constancia Vencida)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Ines', 'Ibañez', 34555666, 'i.ibañez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteInvalido = SCOPE_IDENTITY();
-
-    -- Estudiante 6 (VÁLIDO, pero para ser bloqueado por rechazos)
-    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol)
-    VALUES ('Bruno', 'Benitez', 35666777, 'b.benitez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante');
-    SET @idEstudianteBloqueado = SCOPE_IDENTITY();
-
-    
-    -- 4.4. Carga de Constancias (Esto dispara el TRIGGER de HABILITACIÓN)
-    PRINT 'Cargando constancias (dispara TR_Estudiante_Verificar)...';
+    /****************************************************************************************
+    * 3. CONSTANCIAS (PRUEBA DE TRIGGER DE HABILITACIÓN)
+    ****************************************************************************************/
+    PRINT 'Cargando: 3. Constancias...';
+    PRINT '   (Se debe disparar el trigger tr_estudiante_verificar_constancia)';
     
     DECLARE @fechaHoy DATE = GETDATE();
-    DECLARE @fechaValida DATE = DATEADD(DAY, -30, @fechaHoy);  -- Constancia de hace 1 mes (válida)
-    DECLARE @fechaVencida DATE = DATEADD(MONTH, -7, @fechaHoy); -- Constancia de hace 7 meses (vencida)
+    DECLARE @fechaValida DATE = DATEADD(DAY, -30, @fechaHoy);  -- Válida
+    DECLARE @fechaVencida DATE = DATEADD(MONTH, -7, @fechaHoy); -- Vencida
 
-    INSERT INTO Estudiante (id_estudiante, constancia_url, fecha_constancia)
-    VALUES (@idEstudianteValido1, 'constancias/ggonzalez.pdf', @fechaValida),
-           (@idEstudianteValido2, 'constancias/rramirez.pdf', @fechaValida),
-           (@idEstudianteValido3, 'constancias/ccaceres.pdf', @fechaValida),
-           (@idEstudianteValido4, 'constancias/ssosa.pdf', @fechaValida),
-           (@idEstudianteInvalido, 'constancias/iibañez.pdf', @fechaVencida), -- INVÁLIDO
-           (@idEstudianteBloqueado, 'constancias/bbenitez.pdf', @fechaValida);
+    -- Casos VÁLIDOS (El trigger debería poner Usuario.estado = 1)
+    INSERT INTO Constancia (id_constancia, constancia_url, fecha_constancia)
+    VALUES (@idEst1_Gonzalez, 'constancias/gonzalez.pdf', @fechaValida),
+           (@idEst2_Ramirez, 'constancias/ramirez.pdf', @fechaValida);
 
-    PRINT '--> Se deben haber disparado los triggers de habilitación/notificación.';
-    
+    -- Caso INVÁLIDO (El trigger debería dejar Usuario.estado = 0)
+    INSERT INTO Constancia (id_constancia, constancia_url, fecha_constancia)
+    VALUES (@idEst3_Ibanez_Invalido, 'constancias/ibanez.pdf', @fechaVencida);
+
     /****************************************************************************************
-    * 5. ACCIONES DEL SISTEMA (INSCRIPCIONES)
+    * 4. INSCRIPCIONES (PRUEBA DE TRIGGER DE APELLIDO)
     ****************************************************************************************/
-    PRINT 'Cargando: 5. Inscripciones...';
+    PRINT 'Cargando: 4. Inscripciones...';
+    PRINT '   (Se debe disparar el trigger tr_inscripcion_validar_letra_apellido)';
     
-    -- Inscribimos a los estudiantes VÁLIDOS.
-    -- Esto debe disparar el TRIGGER tr_inscripcion_validar_letra_apellido
-    
-    -- Estudiante 1 ('G' en Com A [A-M]) -> OK
-    INSERT INTO Inscripcion (id_comision, id_estudiante)
-    VALUES (@idComision_BD1_A, @idEstudianteValido1);
-    
-    -- Estudiante 2 ('R' en Com B [N-Z]) -> OK
-    INSERT INTO Inscripcion (id_comision, id_estudiante)
-    VALUES (@idComision_BD1_B, @idEstudianteValido2);
-    
-    -- Estudiante 3 ('C' en Com A [A-M]) -> OK
-    INSERT INTO Inscripcion (id_comision, id_estudiante)
-    VALUES (@idComision_BD1_A, @idEstudianteValido3);
+    -- Inscribimos a los estudiantes que AHORA SÍ están VÁLIDOS (1 y 2)
+    INSERT INTO Inscripcion (id_comision, id_usuario)
+    VALUES (@idComision_BD1_A, @idEst1_Gonzalez),  -- Gonzalez ('G') en Com A (A-M) -> OK
+           (@idComision_BD1_B, @idEst2_Ramirez);   -- Ramirez ('R') en Com B (N-Z) -> OK
+           
+    -- (No inscribimos a Ibañez porque su trigger de constancia lo dejó en estado = 0)
 
-    -- Estudiante 4 ('S' en Com B [N-Z]) -> OK
-    INSERT INTO Inscripcion (id_comision, id_estudiante)
-    VALUES (@idComision_BD1_B, @idEstudianteValido4);
-
-    -- (Opcional) Prueba de Falla de Trigger de Apellido:
-    -- Descomentar la línea de abajo para probar que el trigger falla
-    -- PRINT '--> Probando falla de trigger de apellido (debe fallar y hacer ROLLBACK)...';
-    -- INSERT INTO Inscripcion (id_comision, id_estudiante) VALUES (@idComision_BD1_A, @idEstudianteValido2); -- Falla (Ramirez 'R' no va en Com A)
-    
-    PRINT '--> Se deben haber disparado los triggers de validación de apellido.';
-    
     /****************************************************************************************
-    * 6. ESCENARIO DE PRUEBA (LISTA DE ESPERA Y MATCHES)
+    * 5. LISTA DE ESPERA (PRUEBA DE TRIGGER DE MATCHMAKING)
     ****************************************************************************************/
-    PRINT 'Cargando: 6. Escenario de Prueba (Lista de Espera)...';
-    PRINT '--> Esto disparará TR_ListaEspera_TryMatchOnInsert y creará Propuestas automáticamente.';
+    PRINT 'Cargando: 5. Lista de Espera...';
+    PRINT '   (Se debe disparar el trigger TR_ListaEspera_TryMatchOnInsert y el SP SIC_GenerarMatches)';
 
-    -- Escenario 1: Match Perfecto (e1 vs e2)
-    -- e1 (Gonzalez, Com A) quiere ir a Com B
-    INSERT INTO Lista_Espera (estado, id_estudiante, id_comision_origen, id_comision_destino)
-    VALUES ('En espera', @idEstudianteValido1, @idComision_BD1_A, @idComision_BD1_B);
+    -- Escenario 1: Match Perfecto (Gonzalez vs Ramirez)
+    PRINT '   -> Creando par (Gonzalez A->B y Ramirez B->A)';
     
-    -- e2 (Ramirez, Com B) quiere ir a Com A
-    INSERT INTO Lista_Espera (estado, id_estudiante, id_comision_origen, id_comision_destino)
-    VALUES ('En espera', @idEstudianteValido2, @idComision_BD1_B, @idComision_BD1_A);
-
-    -- Escenario 2: Match Perfecto (e3 vs e4)
-    -- e3 (Caceres, Com A) quiere ir a Com B
-    INSERT INTO Lista_Espera (estado, id_estudiante, id_comision_origen, id_comision_destino)
-    VALUES ('En espera', @idEstudianteValido3, @idComision_BD1_A, @idComision_BD1_B);
-
-    -- e4 (Sosa, Com B) quiere ir a Com A
-    INSERT INTO Lista_Espera (estado, id_estudiante, id_comision_origen, id_comision_destino)
-    VALUES ('En espera', @idEstudianteValido4, @idComision_BD1_B, @idComision_BD1_A);
+    -- Estudiante 1 (Gonzalez, Com A) quiere ir a Com B
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst1_Gonzalez, @idComision_BD1_A, @idComision_BD1_B);
     
-    -- Escenario 3: Estudiante solo en la cola (sin match)
-    -- e6 (Benitez, Com A) quiere ir a Com B (quedará 'En espera')
-    INSERT INTO Lista_Espera (estado, id_estudiante, id_comision_origen, id_comision_destino)
-    VALUES ('En espera', @idEstudianteBloqueado, @idComision_BD1_A, @idComision_BD1_B);
+    -- Estudiante 2 (Ramirez, Com B) quiere ir a Com A
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst2_Ramirez, @idComision_BD1_B, @idComision_BD1_A);
+    -- (El trigger TR_ListaEspera_TryMatchOnInsert DEBE crear la Propuesta #1 aquí)
 
-    PRINT '--> ¡Triggers de Matchmaking ejecutados!';
     
     -- Fin de la transacción
+    PRINT 'Confirmando transacción (COMMIT)...';
     COMMIT TRAN CargaDatos;
     
     PRINT '';
@@ -238,23 +171,6 @@ BEGIN TRY
     PRINT '¡LOTE DE CARGA FINALIZADO EXITOSAMENTE!';
     PRINT '==================================================';
 
-    -- Verificación final (¡La prueba de que funcionó!)
-    PRINT 'Estado final de la Tabla de Propuestas:';
-    SELECT id_propuesta, 
-           estado, 
-           id_listaEspera_1, 
-           id_listaEspera_2
-    FROM Propuesta
-    WHERE estado = 'Pendiente';
-    
-    PRINT 'Estado final de la Lista de Espera:';
-    SELECT id_lista_espera,
-           estado,
-           id_estudiante,
-           id_comision_origen,
-           id_comision_destino
-    FROM Lista_Espera
-    ORDER BY estado, fecha_alta;
 
 END TRY
 BEGIN CATCH
@@ -264,6 +180,7 @@ BEGIN CATCH
         ROLLBACK TRAN CargaDatos;
     END
 
+    -- Muestra el error
     PRINT '';
     PRINT '==================================================';
     PRINT '¡ERROR! El lote de carga falló. Se revirtió la transacción.';
@@ -272,4 +189,62 @@ BEGIN CATCH
     PRINT 'Línea: ' + CAST(ERROR_LINE() AS VARCHAR);
     PRINT GETDATE();
 END CATCH
+GO
+
+/****************************************************************************************
+* 6. PRUEBAS (SELECTs)
+* Esta sección comprueba el resultado de los triggers que se dispararon
+* durante la carga de datos.
+****************************************************************************************/
+PRINT '';
+PRINT '==================================================';
+PRINT 'INICIANDO PRUEBAS (VERIFICACIÓN DE TRIGGERS)';
+PRINT '==================================================';
+GO
+
+-- PRUEBA 1: Verificación del Trigger de Habilitación (Constancia)
+PRINT '';
+PRINT '--- PRUEBA 1: Trigger de Habilitación (tr_estudiante_verificar_constancia)';
+PRINT '   (Gonzalez y Ramirez deben tener estado=1. Ibañez debe tener estado=0)';
+SELECT 
+    id_usuario, 
+    nombre, 
+    apellido, 
+    estado AS [Estado (1=Habilitado)]
+FROM Usuario 
+WHERE rol = 'Estudiante';
+GO
+
+-- PRUEBA 2: Verificación del Trigger de Matchmaking (TR_ListaEspera_TryMatchOnInsert)
+PRINT '';
+PRINT '--- PRUEBA 2: Trigger de Matchmaking (TR_ListaEspera_TryMatchOnInsert)';
+PRINT '   (Debe existir 1 Propuesta en estado "Pendiente")';
+SELECT 
+    id_propuesta, 
+    estado, 
+    id_listaEspera_1, 
+    id_listaEspera_2 
+FROM Propuesta 
+WHERE estado = 'Pendiente';
+GO
+
+PRINT '';
+PRINT '   (Las 2 Listas de Espera deben estar en estado "Pendiente")';
+SELECT 
+    id_lista_espera, 
+    estado, 
+    id_usuario 
+FROM Lista_Espera 
+WHERE estado = 'Pendiente';
+GO
+
+-- PRUEBA 3: Verificación del Hasheo de Contraseñas
+PRINT '';
+PRINT '--- PRUEBA 3: Verificación de Hasheo de Contraseñas';
+PRINT '   (La columna contrasena NO debe ser texto plano, debe ser VARBINARY)';
+SELECT 
+    id_usuario, 
+    correo, 
+    contrasena AS [Hash (VARBINARY(64))]
+FROM Usuario;
 GO
