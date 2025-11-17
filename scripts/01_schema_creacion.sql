@@ -5,12 +5,10 @@
 * DESCRIPCIÓN:
 * Script SQL para el sistema SIC.
 ****************************************************************************************/
-
 CREATE DATABASE SIC_UNNE;
 GO
 USE SIC_UNNE;
 GO
-
 -- Tabla Edificio
 
 CREATE TABLE Edificio (
@@ -73,8 +71,6 @@ CREATE TABLE Usuario (
     apellido NVARCHAR (100) NOT NULL,
     documento INT NOT NULL,
     correo NVARCHAR (100) NOT NULL,
-    --contrasena NVARCHAR (50) NOT NULL,
-    -- CAMBIO: De NVARCHAR(50) a VARBINARY(64) para guardar el HASH (SHA2-512)
     contrasena VARBINARY(64) NOT NULL,
     estado BIT DEFAULT 0,
     rol NVARCHAR (30) NOT NULL,
@@ -111,11 +107,6 @@ ADD
         correo LIKE '_%@_%._%'
     ),
 
-    -- Contraseña mínimo 8 caracteres (no se usa ahora por el hash)
-    --CONSTRAINT ck_usuario_contrasena CHECK (
-    --    LEN(contrasena) >= 8
-    --),
-
     -- Estado solo puede ser 1 o 0
     CONSTRAINT ck_usuario_estado CHECK (estado IN (0, 1));
 GO
@@ -148,13 +139,6 @@ GO
 
 ALTER TABLE Constancia
 ADD 
-
-    -- Verifica que la fecha de constancia no sea futura y hasta 6 meses antes
-    CONSTRAINT ck_constancia_FechaConstancia CHECK (
-        fecha_constancia <= GETDATE()
-        AND fecha_constancia >= DATEADD(MONTH, -6, GETDATE())
-    ),
-
     -- Verifica que la URL tenga formato de archivo válido (simplificada)
     CONSTRAINT ck_constancia_urlFormato CHECK (
         constancia_url LIKE '%.pdf' OR 

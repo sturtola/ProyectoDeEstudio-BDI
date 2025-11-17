@@ -248,3 +248,4 @@ SELECT
     contrasena AS [Hash (VARBINARY(64))]
 FROM Usuario;
 GO
+
