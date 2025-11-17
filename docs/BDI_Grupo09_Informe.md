@@ -427,7 +427,7 @@ Desarrollo TEMA 2 "Optimización de consultas a través de índices"
 
 Desarrollo TEMA 3 "Manejo de Transacciones"
 
-> Acceder a la siguiente carpeta para la descripción completa del tema [scripts-> tema03_transacciones](../scripts/03_temas_investigacion/manejo_transacciones/manejo_transacciones_SIC.md)
+> Acceder a la siguiente carpeta para la descripción completa del tema [scripts-> tema03_transacciones](../scripts/03_temas_investigacion/manejo_transacciones/manejo_transacciones.md)
 
 Desarrollo TEMA 4 "Triggers (Disparadores)"
 
