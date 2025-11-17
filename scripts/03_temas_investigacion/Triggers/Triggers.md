@@ -1,5 +1,5 @@
-Tema 4: Triggers (Disparadores)
-Definición general
+# Tema 4: Triggers (Disparadores)
+## Definición general
 
 Un trigger (o disparador) es un objeto especial de la base de datos que se ejecuta automáticamente ante un evento determinado, sin intervención directa del usuario o de la aplicación. Su propósito principal es permitir la ejecución automática de instrucciones SQL cuando ocurren operaciones como inserciones, actualizaciones o eliminaciones, reforzando reglas de negocio, mecanismos de integridad y auditoría.
 
@@ -7,11 +7,14 @@ Según la documentación oficial de Microsoft (Microsoft Learn, CREATE TRIGGER �
 
 Desde el punto de vista de diseño de sistemas, los triggers permiten complementar las restricciones declarativas (CHECK, FOREIGN KEY, UNIQUE, etc.), proporcionando un nivel adicional de control lógico y operativo que no puede garantizarse únicamente a través de dichas restricciones.
 
-Estructura y sintaxis general
+---
+
+## Estructura y sintaxis general
 
 En SQL Server, la instrucción CREATE TRIGGER define la creación de un trigger.
 La sintaxis general —basada en Microsoft Learn— se expresa de la siguiente forma:
 
+```sql
 -- Fuente: Microsoft Learn – CREATE TRIGGER (Transact-SQL)
 CREATE [ OR ALTER ] TRIGGER [ schema_name . ] trigger_name        -- Crea o modifica un trigger existente
 ON { table | view }                                               -- Tabla o vista sobre la cual actuará el trigger
@@ -32,46 +35,46 @@ AS
 
 <method_specifier> ::=                                            -- Solo aplicable para triggers CLR
         assembly_name.class_name.method_name
+````
+## Elementos clave de la sintaxis
 
-Elementos clave de la sintaxis
+- FOR / AFTER → el trigger se ejecuta después de la operación DML. Ideal para auditoría.
 
-FOR / AFTER → el trigger se ejecuta después de la operación DML. Ideal para auditoría.
+- INSTEAD OF → reemplaza la operación original. Comúnmente usado para impedir DELETE.
 
-INSTEAD OF → reemplaza la operación original. Comúnmente usado para impedir DELETE.
+- inserted → tabla virtual interna con valores nuevos.
 
-inserted → tabla virtual interna con valores nuevos.
+- deleted → tabla virtual interna con valores previos.
 
-deleted → tabla virtual interna con valores previos.
-
-sql_statement → bloque de instrucciones ejecutadas automáticamente.
+- sql_statement → bloque de instrucciones ejecutadas automáticamente.
 
 Esta sintaxis se utilizó como base para todos los triggers implementados en el proyecto SIC-UNNE.
 
-Usos comunes de los triggers
-✔ Validación automática de datos
+## Usos comunes de los triggers
+- ✔ Validación automática de datos
 
 Permiten implementar reglas complejas que no pueden resolverse únicamente con restricciones declarativas.
 Ejemplo: impedir modificaciones no autorizadas sobre propuestas.
 
-✔ Auditoría de cambios
+- ✔ Auditoría de cambios
 
 Registran quién modificó un registro, cuándo y qué valores fueron afectados.
 En SIC-UNNE se utiliza para auditar el estado anterior de una inscripción ante un UPDATE o DELETE.
 
-✔ Sincronización y coherencia de datos
+- ✔ Sincronización y coherencia de datos
 
 Pueden actualizar otras tablas dependientes de manera automática.
 
-✔ Ejecución automática de reglas de negocio
+- ✔ Ejecución automática de reglas de negocio
 
 Ejemplo: impedir eliminar propuestas existentes y obligar a gestionar estados válidos.
 
-✔ Prevención de operaciones no permitidas
+- ✔ Prevención de operaciones no permitidas
 
 Un trigger INSTEAD OF DELETE puede impedir la eliminación física de registros sensibles.
 
-Ventajas y desventajas
-Ventajas
+## Ventajas y desventajas
+**Ventajas**
 
 Automatización completa: ejecutan lógica sin intervención de la aplicación.
 
@@ -81,7 +84,7 @@ Auditoría interna: registran cambios sensibles sin modificar la aplicación.
 
 Centralización de reglas: la lógica está en el motor, no en el código.
 
-Desventajas
+**Desventajas**
 
 Dificultad de depuración: se ejecutan automáticamente y pueden generar efectos ocultos.
 
@@ -91,11 +94,11 @@ Dependencia del motor: pueden dificultar la migración a otros SGBD.
 
 Complejidad adicional: mal diseñados pueden generar comportamientos inesperados.
 
-Implementación en SIC-UNNE
+## Implementación en SIC-UNNE
 
 Los triggers diseñados para SIC-UNNE cumplen dos roles principales:
 
-1. Auditoría automática de inscripciones (UPDATE y DELETE)
+**1. Auditoría automática de inscripciones (UPDATE y DELETE)**
 
 Se implementó la tabla Auditoria_Inscripcion, donde los triggers registran:
 
@@ -109,11 +112,11 @@ El tipo de operación (UPDATE o DELETE)
 
 Esto garantiza trazabilidad y facilita revisiones administrativas.
 
-2. Control y protección de operaciones sobre propuestas
+**2. Control y protección de operaciones sobre propuestas**
 
 Se implementaron dos triggers principales.
 
-✔ Bloqueo de eliminación física (INSTEAD OF DELETE)
+- ✔ Bloqueo de eliminación física (INSTEAD OF DELETE)
 
 Una propuesta no puede eliminarse porque:
 
@@ -125,7 +128,7 @@ Se pierde trazabilidad y coherencia administrativa
 
 El trigger bloquea el DELETE y muestra un mensaje de error.
 
-✔ Restricción de actualizaciones (AFTER UPDATE)
+- ✔ Restricción de actualizaciones (AFTER UPDATE)
 
 Solo se permite modificar el estado de la propuesta.
 El trigger verifica que no cambien:
@@ -138,7 +141,7 @@ Otros atributos esenciales
 
 Cualquier otro cambio revierte la operación.
 
-Conclusiones
+## Conclusiones
 
 Los triggers desarrollados en SIC-UNNE cumplen con los objetivos planteados:
 
@@ -149,3 +152,4 @@ El trigger que bloquea la eliminación de propuestas garantiza coherencia y cump
 El trigger que restringe actualizaciones evita manipulación indebida de información crítica.
 
 En conjunto, estos triggers fortalecen la integridad, seguridad y consistencia del sistema académico, proporcionando un nivel de control indispensable en un entorno donde las operaciones deben quedar registradas y protegidas.
+
