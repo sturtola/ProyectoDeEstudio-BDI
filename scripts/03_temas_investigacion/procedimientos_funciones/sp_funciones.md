@@ -326,31 +326,16 @@ Para concluir con la investigación, se da a conocer una breve
 comparación de eficiencia entre las operaciones directas, los
 procedimientos almacenados y las funciones almacenadas:
 
-  -----------------------------------------------------------------------
-  **Criterio**      **Operación       **Procedimiento   **Función
-                    Directa**         almacenado**      almacenada**
-  ----------------- ----------------- ----------------- -----------------
-  **Plan de         Se recompila      Se reutiliza (más Se reutiliza
-  ejecución**       siempre           rápido)           
+| Criterio                   | Operación Directa                           | Procedimiento almacenado            | Función almacenada             |
+|----------------------------|---------------------------------------------|-------------------------------------|--------------------------------|
+| Plan de ejecución          | Se recompila siempre                        | Se reutiliza (más rápido)           | Se reutiliza                   |
+| Rendimiento                | Medio–bajo                                  | Alto                                | Alto para cálculos             |
+| Seguridad                  | Baja si no se parametriza                   | Muy alta                            | Alta                           |
+| Consistencia de reglas     | Depende del programador                     | Garantizada                         | Garantizada                    |
+| Tráfico entre capas        | Alto                                        | Bajo                                | Bajo                           |
+| Facilidad de mantenimiento | Baja                                        | Alta                                | Alta                           |
+| Lógica compleja            | Difícil                                     | Ideal                               | Solo cálculos                  |
 
-  **Rendimiento**   Medio--bajo       Alto              Alto para
-                                                        cálculos
-
-  **Seguridad**     Baja si no se     Muy alta          Alta
-                    parametriza                         
-
-  **Consistencia de Depende del       Garantizada       Garantizada
-  reglas**          programador                         
-
-  **Tráfico entre   Alto              Bajo              Bajo
-  capas**                                               
-
-  **Facilidad de    Baja              Alta              Alta
-  mantenimiento**                                       
-
-  **Lógica          Difícil           Ideal             Solo cálculos
-  compleja**                                            
-  -----------------------------------------------------------------------
 
 En conclusión, las **operaciones directas** son útiles para prototipos,
 pero **no son recomendables** en un sistema con reglas complejas como
