@@ -1,5 +1,5 @@
 /****************************************************************************************
-* PROYECTO:         SIC-UNNE (Bases de Datos I)
+* PROYECTO:         SIC-UNNE 
 * TEMA:             Manejo de transacciones y transacciones anidadas
 * ARCHIVO:          manejo_transacciones.sql
 * DESCRIPCIÓN:
@@ -8,9 +8,6 @@
 *   - Provocar un error y comprobar el ROLLBACK
 *   - Mostrar un ejemplo simple de transacción anidada usando SAVEPOINT
 *
-* NOTA:
-*   Este script asume que la base de datos SIC_UNNE ya existe y que el esquema
-*   fue creado por los scripts principales.
 ****************************************************************************************/
 
 USE SIC_UNNE;
