@@ -1,127 +1,192 @@
-# TEMA 1 — Procedimientos y Funciones Almacenadas
+# TEMA 3 — Manejo de Transacciones
 
-## Procedimientos Almacenados
+## 1. Introducción a las Transacciones
 
-En el sistema SIC-UNNE, los procedimientos almacenados cumplen un rol central para gestionar las operaciones más importantes relacionadas con el intercambio de comisiones. Estos procedimientos permiten centralizar la lógica académica y administrativa en el servidor SQL, evitando errores en la aplicación cliente y garantizando resultados consistentes en cada operación.
-Un procedimiento almacenado es un bloque de instrucciones SQL precompiladas que se ejecuta directamente en el motor de base de datos. En un sistema con múltiples usuarios —como administradores, verificadores y estudiantes— esto permite automatizar tareas críticas: validar inscripciones, mover estudiantes a la lista de espera, generar propuestas de intercambio o registrar rechazos, reduciendo significativamente la complejidad en el código externo.
-En el SIC-UNNE, los procedimientos almacenados contribuyen a:
+En SQL Server, una transacción representa una unidad lógica de trabajo que agrupa una o más operaciones que deben ejecutarse de forma atómica. Es decir, todas deben completarse con éxito o ninguna debe aplicarse. Esta propiedad es fundamental para sistemas donde la integridad es prioritaria, como en el SIC-UNNE, donde un error durante un intercambio, una inscripción o un rechazo podría dejar a un estudiante en un estado inconsistente.
+Las transacciones garantizan que los procesos críticos de la base de datos respeten las propiedades ACID:
 
-- **Mantener la integridad académica** durante altas y bajas de comisiones.
-- **Evitar duplicaciones o inconsistencias** en inscripciones y solicitudes.
-- **Ejecutar operaciones complejas como una unidad lógica**, garantizando que se cumplan todas las reglas del sistema.
-- **Optimizar el rendimiento**, reduciendo llamadas repetitivas desde la aplicación.
-- **Aplicar seguridad**, permitiendo que ciertos procesos solo puedan ser ejecutados por roles autorizados (como el verificador o el administrador).
+- **Atomicidad:** todo ocurre o no ocurre.
+- **Consistencia:** los datos siempre pasan de un estado válido a otro.
+- **Aislamiento:** los procesos concurrentes no interfieren entre sí.
+- **Durabilidad:** una vez confirmado, el cambio es permanente.
 
-### Creación y administración
+### 2. Transacciones en el contexto del SIC-UNNE
 
-En SQL Server, un procedimiento se define mediante CREATE PROCEDURE.
-En el SIC-UNNE, esto permite encapsular procesos como:
+El SIC-UNNE realiza numerosas operaciones que requieren confiabilidad absoluta. Entre ellas:
 
-- Validación de datos personales del estudiante.
-- Registro de inscripciones a comisiones.
-- Inserción en listas de espera.
-- Generación automática de propuestas de intercambio.
-- Actualización del estado de una propuesta (aceptada, rechazada, vencida).
+- inscripción de estudiantes a comisiones,
+- asignación a listas de espera,
+- generación de propuestas de intercambio,
+- aceptación o rechazo de propuestas,
+- actualización de cupos,
+- notificaciones al verificador.
 
-Ejemplo conceptual aplicado al SIC-UNNE:
+En todos estos casos, un fallo a mitad de proceso no puede dejar datos sin coherencia, por lo que el uso de transacciones es indispensable.
+
+Ejemplo:
+Si dos estudiantes aceptan un intercambio pero el sistema falla justo después de mover solo a uno, quedaría un estado imposible de recuperar sin una transacción.
+
+### 3. BEGIN TRAN… COMMIT… ROLLBACK en el SIC-UNNE
+
+El manejo básico de transacciones se realiza mediante:
+
+- BEGIN TRANSACTION → inicia la transacción
+- COMMIT → confirma los cambios
+- ROLLBACK → revierte todo lo realizado desde el BEGIN
+
+En el SIC-UNNE esto es útil para:
+
+✔ **Registrar inscripciones**
 ```sql
-CREATE PROCEDURE sp_inscribir_estudiante
-    @estudiante_id INT,
-    @comision_id INT
-AS
-BEGIN
-    -- Validaciones, verificaciones de cupo e inserción final.
-END;
+BEGIN TRAN
+    -- validar estudiante
+    -- validar cupo
+    -- insertar inscripción
+    -- actualizar contadores
+COMMIT
 ````
-Cada procedimiento puede posteriormente modificarse (ALTER PROCEDURE) o eliminarse (DROP PROCEDURE) según se requiera.
-
-### Características principales en el SIC-UNNE
-
-Dentro del sistema, los procedimientos almacenados permiten:
-
-- Ejecutar operaciones **CRUD controladas** sobre inscripciones y propuestas.
-- Manejar **transacciones completas**, esenciales para el proceso de intercambio.
-- Implementar **validaciones automáticas**, como evitar que un alumno esté en dos comisiones simultáneas.
-- **Registrar rechazos**, justificarlos y actualizar el estado del estudiante en la lista de espera.
-- Generar notificaciones internas hacia el verificador.
-
-Al ejecutarse en el servidor, se reduce el tráfico entre la aplicación y la base de datos, y se aprovechan planes de ejecución precompilados, aumentando el rendimiento general.
-
-### Tipos de procedimientos aplicados al proyecto
-
-En el SIC-UNNE se pueden emplear:
-
-- **Procedimientos definidos por el usuario**
-(por ejemplo: sp_generar_propuesta, sp_registrar_rechazo, sp_actualizar_inscripcion).
-- **Procedimientos temporales**, usados en pruebas o procesos auxiliares.
-- **Procedimientos del sistema**, aprovechados para diagnósticos o consultas internas.
-
-### Funciones Almacenadas
-
-Las funciones almacenadas permiten calcular valores derivados, aplicar validaciones y procesar datos que luego pueden ser reutilizados en distintas consultas del sistema. En el contexto del SIC-UNNE, las funciones aportan coherencia y simplificación en tareas que se ejecutan constantemente, tales como:
-
-- Determinar si un estudiante cumple los requisitos para una comisión.
-- Evaluar si dos estudiantes tienen compatibilidad para un intercambio.
-- Obtener el estado actual de una propuesta.
-- Verificar si un estudiante está sancionado por rechazos múltiples.
-
-A diferencia de los procedimientos, las funciones **siempre devuelven un valor y no pueden modificar datos**, lo cual garantiza un comportamiento determinista y seguro para la lógica del sistema.
-
-### Creación y administración
-
-Las funciones se crean con CREATE FUNCTION y requieren siempre un valor de retorno.
-En el SIC-UNNE se utilizan para:
-
-- Calcular disponibilidad de comisiones.
-- Validar turnos compatibles.
-- Obtener los rechazos acumulados de un estudiante.
-- Consultar si ya existe una propuesta activa entre dos alumnos.
-
-Ejemplo conceptual:
+✔ **Mover un estudiante a lista de espera**
 ```sql
-CREATE FUNCTION fn_tiene_cupo
-(
-    @comision_id INT
-)
-RETURNS BIT
-AS
-BEGIN
-    DECLARE @cupoDisponible BIT;
-
-    SELECT @cupoDisponible =
-        CASE WHEN cupo > inscriptos THEN 1 ELSE 0 END
-    FROM Comisiones
-    WHERE id_comision = @comision_id;
-
-    RETURN @cupoDisponible;
-END;
+BEGIN TRAN
+    -- verificar requisitos
+    -- insertar en lista de espera
+    -- actualizar estados previos
+    -- generar notificación
+COMMIT
 ````
-### Características principales en el SIC-UNNE
+✔ **Procesar una propuesta aceptada**
+```sql
+BEGIN TRAN
+    -- validar compatibilidad
+    -- intercambiar comisiones
+    -- actualizar lista de espera
+    -- registrar cambios
+COMMIT
+````
+Si ocurre cualquier error en el proceso:
+```sql
+ROLLBACK  -- nada cambia
+````
+Esto protege totalmente la integridad del sistema.
 
-Las funciones almacenadas contribuyen a:
+### 4. Savepoints dentro del SIC-UNNE
 
-- **Estandarizar reglas de negocio**, como validaciones de pertenencia a carrera o turno.
-- **Reutilizar cálculos complejos** en diversas partes del sistema.
-- Aumentar la **claridad y mantenibilidad** del código SQL.
-- Evitar errores repetitivos en consultas escritas por diferentes usuarios o módulos.
-- Mejorar el rendimiento al ejecutarse directamente en el motor.
+Un **SAVEPOINT** permite deshacer sólo una parte de la transacción sin revertir todo lo anterior.
+Es muy útil en procesos complejos donde algunas validaciones pueden fallar.
 
-### Tipos de funciones almacenadas utilizadas
+Ejemplo aplicado al intercambio de estudiantes:
+```sql
+BEGIN TRAN
 
-- **Funciones escalares**, que devuelven valores como bit, entero, fecha o string.
-- **Funciones con valor de tabla**, útiles para generar subconjuntos de datos, por ejemplo:
-- alumnos en lista de espera por comisión,
-- propuestas activas entre dos alumnos,
-- coincidencias horarias entre comisiones.
+SAVE TRAN validaciones
+-- Validaciones críticas
+IF (@compatible = 0)
+    ROLLBACK TRAN validaciones
 
-### Conclusión
+-- Cambios definitivos
+UPDATE Inscripcion ...
+UPDATE Lista_Espera ...
+INSERT Auditoria ...
+COMMIT
+````
+Esto permite:
 
-Los procedimientos y funciones almacenadas constituyen una parte esencial de la arquitectura del sistema SIC-UNNE. Ambos permiten centralizar la lógica de negocio en el servidor SQL, mejorar el rendimiento de las operaciones más utilizadas, garantizar coherencia en los cálculos y reducir la cantidad de validaciones necesarias desde la aplicación.
+- revertir solo la sección que falló,
+- mantener datos que sí eran correctos,
+- evitar reiniciar todo el proceso.
 
-Los procedimientos resultan ideales para gestionar procesos críticos, como inscripciones, propuestas, aceptaciones, rechazos y movimientos en listas de espera, asegurando que cada operación respete las reglas principales del sistema.
+### 5. Aislamiento de transacciones en el SIC-UNNE
 
-Por otro lado, las funciones permiten validar condiciones internas —como cupos, compatibilidades y estados— de forma rápida y reutilizable, garantizando que todas las operaciones deriven de un mismo criterio académico-administrativo.
+SQL Server ofrece distintos niveles de aislamiento:
 
-En conjunto, ambos componentes fortalecen la seguridad, coherencia lógica, eficiencia y control general del sistema, haciendo posible un flujo de intercambio transparente y confiable dentro de la UNNE.
+- **READ COMMITTED** (por defecto)
+- **READ UNCOMMITTED**
+- **REPEATABLE READ**
+- **SERIALIZABLE**
+- **SNAPSHOT**
+
+En el SIC-UNNE se recomienda READ COMMITTED, ya que evita lecturas inconsistentes sin bloquear completamente el sistema.
+
+Ejemplo donde es indispensable:
+
+- Cuando dos estudiantes intentan inscribirse al último cupo de una comisión.
+- Cuando dos propuestas se generan simultáneamente sobre el mismo par de alumnos.
+
+Sin un aislamiento correcto podrían ocurrir:
+
+- sobreasignación de cupos,
+- propuestas duplicadas,
+- inconsistencias en lista de espera.
+
+### 6. Transacciones + Trigger = Protección doble
+
+El SIC-UNNE utiliza triggers en:
+
+- **Inscripciones (auditoría)**
+- **Propuesta (bloqueo de DELETE y restricción de UPDATE)**
+
+Cuando un procedimiento usa transacciones y ese procedimiento activa un trigger:
+
+- el trigger **hereda la transacción,**
+- si el trigger falla → **se hace ROLLBACK de toda la operación,**
+- si la transacción falla → **se revierte lo hecho por el trigger.**
+
+Esta combinación garantiza que:
+
+✔ no se rompa el historial,
+
+✔ no desaparezcan propuestas,
+
+✔ no queden inscripciones incompletas,
+
+✔ no se dupliquen operaciones críticas.
+
+Esto es especialmente útil en:
+
+- manejo de rechazos,
+- generación de propuestas automáticas,
+- intercambios aceptados por ambas partes.
+
+### 7. Ejemplo completo: Aceptación de propuesta con transacción
+
+```sql
+BEGIN TRAN intercambiar
+
+-- Validar propuesta
+IF NOT EXISTS(SELECT 1 FROM Propuesta WHERE id = @propuesta AND estado = 'pendiente')
+BEGIN
+    ROLLBACK TRAN intercambiar
+    RETURN
+END
+
+-- Intercambiar comisiones
+UPDATE Inscripcion SET comision_id = @nuevaA WHERE estudiante_id = @estudianteA
+UPDATE Inscripcion SET comision_id = @nuevaB WHERE estudiante_id = @estudianteB
+
+-- Registrar en auditoría
+INSERT INTO Auditoria_Inscripcion (...)
+
+-- Cambiar estado de la propuesta
+UPDATE Propuesta SET estado = 'aceptada' WHERE id = @propuesta
+
+COMMIT TRAN intercambiar
+````
+**Si cualquier parte falla → se revierte todo**
+
+### 8. Conclusión
+
+El manejo de transacciones es uno de los componentes esenciales del SIC-UNNE, ya que garantiza que los procesos académicos críticos —como inscripciones, listas de espera, propuestas, rechazos e intercambios— se ejecuten de manera consistente, segura y confiable.
+
+Las transacciones permiten:
+
+- preservar la integridad de los datos,
+- evitar estados intermedios inválidos,
+- manejar errores de forma controlada,
+- asegurar que las reglas académicas se cumplan siempre,
+- mantener coherencia incluso en escenarios concurrentes.
+
+En conjunto con triggers, procedimientos, funciones e índices, las transacciones consolidan un sistema robusto, confiable y resistente a fallos, asegurando la transparencia y eficiencia del proceso de intercambio de comisiones dentro de la UNNE.
+
+
 
 
