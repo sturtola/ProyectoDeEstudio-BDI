@@ -128,21 +128,21 @@ A continuación se desarrollan los conceptos teóricos correspondientes a los te
 ### TEMA 1 — Procedimientos y Funciones Almacenadas
 Los procedimientos almacenados y las funciones constituyen herramientas fundamentales dentro del motor de base de datos para encapsular lógica de negocio, mejorar el rendimiento del sistema y garantizar operaciones seguras y consistentes.
 
-**1. Introducción**
+#### **1. Introducción**
 
-**2. Procedimientos Almacenados**
+#### **2. Procedimientos Almacenados**
 
-**3. Funciones Almacenadas**
+#### **3. Funciones Almacenadas**
 
-**4. Aplicación en el SIC-UNNE**
+#### **4. Aplicación en el SIC-UNNE**
 
 ### TEMA 2 — Optimización mediante Índices
 
-**1. Introducción a la Optimización por Índices**
+#### **1. Introducción a la Optimización por Índices**
 
 En los sistemas de gestión de bases de datos, la eficiencia de las consultas (SELECT) es un factor decisivo para el rendimiento general. A medida que las tablas crecen a miles o millones de registros, la búsqueda secuencial se vuelve extremadamente costosa. Los índices funcionan como atajos que permiten acceder rápidamente a las filas sin recorrer toda la tabla, cumpliendo un rol equivalente al índice de un libro.
 
-**2. ¿Qué es un Table Scan?**
+#### **2. ¿Qué es un Table Scan?**
 
 Un Table Scan ocurre cuando el motor lee fila por fila toda la tabla, evaluando cada registro para determinar si cumple una condición. Esto genera un gran consumo de CPU, memoria y tiempo.
 Ejemplo:
@@ -154,7 +154,7 @@ WHERE dni = '40111222';
 ````
 Si dni no tiene índice, el motor debe recorrer todos los registros.
 
-**3. ¿Qué problema ocurre en el SIC-UNNE?**
+#### **3. ¿Qué problema ocurre en el SIC-UNNE?**
 
 En el sistema, tablas como:
 - Lista_Espera
@@ -185,7 +185,7 @@ provocan:
 
 cuando no existen índices adecuados.
 
-**4. Escenario sin Índices: La Pesadilla**
+#### **4. Escenario sin Índices: La Pesadilla**
 
 Supongamos una Lista_Espera con 20.000 estudiantes.
 ```sql
@@ -206,7 +206,7 @@ Generando:
 - congestión
 - riesgo de caída
 
-**5. Escenario con Índice: La Solución Óptima**
+#### **5. Escenario con Índice: La Solución Óptima**
 ```sql
 CREATE INDEX idx_lista_espera_estado_comision
 ON Lista_Espera (estado, comision_id);
@@ -217,7 +217,7 @@ Beneficios:
 - Respuestas en milisegundos
 - Reducción masiva de lecturas lógicas
 
-**6. ¿Qué columnas conviene indexar en el SIC-UNNE?**
+#### **6. ¿Qué columnas conviene indexar en el SIC-UNNE?**
 1. dni o legajo
 ```sql
 CREATE INDEX idx_estudiantes_dni
@@ -239,14 +239,14 @@ CREATE INDEX idx_comisiones_materia_turno
 ON Comisiones (materia_id, turno);
 ````
 
-**7. Ventajas Tangibles**
+#### **7. Ventajas Tangibles**
 
 - Consultas hasta 10× más veloces
 - Menor carga del servidor
 - Mayor estabilidad en momentos pico
 - Reducción del I/O y CPU
 
-**8. Desventajas de los índices**
+#### **8. Desventajas de los índices**
 
 - Requieren espacio
 - Añaden costo en inserciones/updates
@@ -258,7 +258,7 @@ Reglas:
 - No indexar columnas booleanas
 - Mantener (reindexar) regularmente
 
-**9. Conclusión**
+#### **9. Conclusión**
 
 Sin índices, el SIC-UNNE escala mal y sufre de Table Scans constantes.
 Con índices adecuados, el sistema gana estabilidad, velocidad y capacidad para soportar miles de usuarios simultáneos.
@@ -266,20 +266,98 @@ La optimización de índices es indispensable para garantizar confiabilidad y re
 
 ### TEMA 3 — Manejo de Transacciones
 
-**1. Introducción**
+#### **1. Introducción**
 
-**2. Propiedades ACID**
+En SQL Server, una transacción es una unidad de trabajo que agrupa varias operaciones para que se ejecuten de forma segura. Si todas las acciones son exitosas, los cambios se confirman; si ocurre un error, se revierten por completo.
 
-**3. Comandos básicos**
+Este mecanismo es fundamental en sistemas como el SIC-UNNE, donde procesos como inscripciones, movimientos a lista de espera o aceptación de propuestas no pueden quedar a medio completar. Las transacciones aseguran que los datos se mantengan coherentes incluso ante fallos, errores de usuario o problemas de concurrencia.
 
-- BEGIN
-- COMMIT
-- ROLLBACK
-  (falta teoria)
+#### **2. Propiedades ACID**
 
-**4. Savepoints**
+Las transacciones se rigen por cuatro principios fundamentales:
 
-**5. Aplicación en el SIC-UNNE**
+**A — Atomicidad**
+
+Todo se ejecuta o no se ejecuta.
+Evita estados parciales, por ejemplo, cuando dos alumnos intercambian comisiones y solo uno de ellos llega a actualizarse.
+
+**C — Consistencia**
+
+Los datos pasan siempre de un estado válido a otro.
+Las reglas del sistema (cupos, estados, relaciones) se respetan siempre.
+
+**I — Aislamiento (Isolation)**
+
+Dos procesos simultáneos no deben interferir entre sí.
+Ejemplo: evitar que dos estudiantes reserven el mismo último cupo al mismo tiempo.
+
+**D — Durabilidad**
+
+Una vez confirmado (COMMIT), el cambio es permanente incluso ante fallos del sistema.
+
+#### **3. Comandos básicos**
+
+Las transacciones se manejan con tres comandos principales:
+
+**BEGIN TRANSACTION**
+
+Inicia la transacción.
+Todo lo que se ejecute después formará parte de la misma unidad de trabajo.
+
+**COMMIT**
+
+Confirma la transacción.
+Los cambios quedan guardados de manera definitiva.
+
+**ROLLBACK**
+
+Revierte por completo la transacción.
+Deshace todos los cambios realizados desde el BEGIN; se utiliza en caso de errores, validaciones fallidas o inconsistencias detectadas.
+
+En el SIC-UNNE, ROLLBACK evita que una inscripción, propuesta o intercambio quede incompleto o con datos inválidos.
+
+#### **4. Savepoints**
+
+Los **SAVEPOINT** permiten crear puntos intermedios dentro de una transacción.
+Si una parte falla, se puede revertir solo hasta ese punto, sin perder todo lo previamente realizado.
+Ejemplo conceptual:
+```sql
+BEGIN TRAN
+SAVE TRAN validaciones
+
+-- Validaciones críticas
+IF (@esCompatible = 0)
+    ROLLBACK TRAN validaciones
+
+-- Cambios finales
+COMMIT
+````
+Esto es útil en procesos complejos donde algunas validaciones pueden fallar, pero no queremos descartar todo el progreso.
+
+#### **5. Aplicación en el SIC-UNNE**
+
+Las transacciones son esenciales para garantizar integridad y coherencia en los procesos académicos del sistema.
+Ejemplos de uso:
+
+✔ **Inscripción de estudiantes**
+
+Evita que un alumno quede inscripto en dos comisiones o que se registre sin validar cupo.
+
+✔ **Movimientos a lista de espera**
+
+Agrupa validaciones, inserciones y actualizaciones en un solo bloque seguro.
+
+✔ **Generación y aceptación de propuestas de intercambio**
+
+Asegura que ambos estudiantes intercambien correctamente sus comisiones o que, ante un error, se vuelva todo al estado original.
+
+✔ **Registro de rechazos**
+
+Permite actualizar el estado de la propuesta, la justificación y el historial del estudiante como una operación indivisible.
+
+✔ **Interacciones con triggers**
+
+Si un trigger falla (como el que controla propuestas), la transacción completa se revierte automáticamente, protegiendo la integridad del sistema.
 
 ### TEMA 4 — Triggers (Disparadores)
 
@@ -289,7 +367,7 @@ A diferencia de un procedimiento almacenado tradicional, un trigger no se invoca
 
 SQL Server provee dos tablas virtuales, inserted y deleted, que permiten comparar el estado anterior y el nuevo estado de un registro, facilitando tareas como auditoría, control de integridad y restricciones personalizadas sobre los cambios realizados en la base de datos.
 
-**Tipos de triggers en SQL Server**
+#### **Tipos de triggers en SQL Server**
 
 - **AFTER (o FOR) INSERT/UPDATE/DELETE:**
 Se ejecutan después de que la operación DML ocurre. Son ideales para auditorías o actualizaciones automáticas.
@@ -298,7 +376,7 @@ Sustituyen la operación original. Se emplean para evitar eliminaciones físicas
 
 Estos mecanismos permiten implementar reglas de negocio más complejas que no pueden lograrse mediante simples restricciones (CHECK, FOREIGN KEY, etc.).
 
-**Usos comunes de los triggers**
+#### **Usos comunes de los triggers**
 
 - **Auditoría de cambios:** permiten registrar valores antes de un UPDATE o DELETE.
 - **Validación de operaciones:** impiden actualizaciones no autorizadas.
@@ -306,7 +384,7 @@ Estos mecanismos permiten implementar reglas de negocio más complejas que no pu
 - **Asegurar integridad lógica:** mantienen coherencia en procesos automáticos.
 - **Sincronización entre tablas:** actualizan datos derivados sin intervención de la aplicación.
 
-**Aplicación de triggers en el SIC-UNNE**
+#### **Aplicación de triggers en el SIC-UNNE**
 
 En el sistema SIC-UNNE, los triggers se emplean para reforzar la trazabilidad y la integridad del proceso de intercambio de comisiones. Su rol es clave en dos áreas:
 
@@ -321,7 +399,7 @@ Se diseñaron triggers AFTER UPDATE y AFTER DELETE sobre la tabla Inscripcion pa
 
 De esta forma, cada modificación o baja queda trazada en la tabla Auditoria_Inscripcion, asegurando transparencia y un historial completo del estudiante.
 
-2. **Protección y control sobre Propuestas de Intercambio**
+#### 2. **Protección y control sobre Propuestas de Intercambio**
  
 La tabla Propuesta representa el corazón del mecanismo de match entre estudiantes. Por ello se implementaron dos tipos de triggers:
 
@@ -336,7 +414,7 @@ cambios en las listas, fechas o estudiantes involucrados son bloqueados.
 
 Con esto se protege el flujo del intercambio y se impide la manipulación indebida de información crítica.
 
-**Conclusión**
+#### **Conclusión**
 
 Los triggers implementados en el SIC-UNNE permiten asegurar:
 
