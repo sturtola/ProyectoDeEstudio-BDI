@@ -56,21 +56,14 @@ procesos y centralizar la lógica de negocio dentro de la base de datos.
 -   **Ejecutan transacciones:** Permiten garantizar la integridad de los
     > datos aplicando COMMIT o ROLLBACK.
 
-+-----------------------------------+-----------------------------------+
-| **Ventajas**                      | **Desventajas**                   |
-+===================================+===================================+
-| #### Mejoran el rendimiento       | Dependencia del motor de base de  |
-|                                   | datos                             |
-+-----------------------------------+-----------------------------------+
-| Centralizan la lógica             | Sobrecarga en el servidor         |
-+-----------------------------------+-----------------------------------+
-| Incrementan la seguridad          | Dificultad en el versionado       |
-+-----------------------------------+-----------------------------------+
-| Reducen el tráfico entre la       | Mayor complejidad                 |
-| aplicación y la base              |                                   |
-+-----------------------------------+-----------------------------------+
-| Facilitan el mantenimiento        |                                   |
-+-----------------------------------+-----------------------------------+
+| Ventajas                                         | Desventajas                  m         |
+|--------------------------------------------------|----------------------------------------|
+| Mejoran el rendimiento                           | Dependencia del motor de base de datos |
+| Centralizan la lógica                            | Sobrecarga en el servidor              |
+| Incrementan la seguridad                         | Dificultad en el versionado            |
+| Reducen el tráfico entre la aplicación y la base | Mayor complejidad                      |
+| Facilitan el mantenimiento                       |                                        |
+
 
 Un procedimiento almacenado suele tener la siguiente estructura:
 
@@ -285,59 +278,28 @@ normalmente no modifica datos).
     > **Table-valued function (TVF)** ( devuelve una tabla; puede ser
     > INLINE o MULTI-STATEMENT).
 
-  -----------------------------------------------------------------------
-  **Ventajas**                        **Desventajas**
-  ----------------------------------- -----------------------------------
-  Reutilización y mantenimiento       No deben tener efectos secundarios
+| Ventajas                             | Desventajas                               |
+|--------------------------------------|-------------------------------------------|
+| Reutilización y mantenimiento        | No deben tener efectos secundarios        |
+| Legibilidad y abstracción            | Problemas de rendimiento si se usan mal   |
+| Integridad lógica                    | Restricciones sintácticas                 |
+| Posible optimización por el motor    | Depuración y manejo de errores            |
+| Seguridad                            | Posible complejidad en permisos           |
 
-  Legibilidad y abstracción           Problemas de rendimiento si se usan
-                                      mal
-
-  Integridad lógica                   Restricciones sintácticas
-
-  Posible optimización por el motor   Depuración y manejo de errores
-
-  Seguridad                           Posible complejidad en permisos
-  -----------------------------------------------------------------------
 
 **Diferencias entre Procedimiento y Función**
 
-  ------------------------------------------------------------------------
-  **Aspecto**              **Función (UDF)**       **Procedimiento (SP)**
-  ------------------------ ----------------------- -----------------------
-  **Devuelve**             Valor escalar o tabla   Códigos, mensajes o
-                                                   result sets múltiples
+| Aspecto                               | Función (UDF)                                                                 | Procedimiento (SP)                                                         |
+|----------------------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| Devuelve                               | Valor escalar o tabla                                                         | Códigos, mensajes o result sets múltiples                                 |
+| Uso en consultas                        | Sí                                                                            | No                                                                         |
+| Efectos secundarios (DML)               | No permiten DML en tablas persistentes (dependiendo del motor)               | Sí permiten DML, transacciones, llamadas a otros SP, SQL dinámico         |
+| Parámetros de salida                    | Devuelven resultado por RETURN o tabla; no tienen OUTPUT                     | Soportan OUTPUT parameters y mecanismos de retorno variados               |
+| Uso recomendado                         | Cálculos reutilizables, lógica sin efectos secundarios, encapsulación de expresiones | Flujos transaccionales, lógica que modifica datos, tareas administrativas |
+| Optimización                            | Inline TVF puede ser optimizada; scalar UDF tradicionales pueden penalizar   | Muy optimizables para tareas transaccionales; control total de transacciones |
+| Manejo de errores / control transaccional | Limitado                                                                     | Completo (TRY/CATCH, THROW, control de transacciones)                     |
+| Seguridad / Permisos                    | Ejecutan con contexto del invocador a menos que se configure                 | Similar, pero con más flexibilidad en esquemas de ejecución               |
 
-  **Uso en consultas**     Sí                      No
-
-  **Efectos secundarios    No permiten DML en      Sí permiten DML,
-  (DML)**                  tablas persistentes     transacciones, llamadas
-                           (dependiendo del motor) a otros SP, SQL
-                                                   dinámico
-
-  **Parámetros de salida** Devuelven resultado por Soportan OUTPUT
-                           RETURN o tabla; no      parameters y mecanismos
-                           tienen OUTPUT           de retorno variados
-
-  **Uso recomendado**      Cálculos reutilizables, Flujos transaccionales,
-                           lógica sin efectos      lógica que modifica
-                           secundarios,            datos, tareas
-                           encapsulación de        administrativas
-                           expresiones             
-
-  **Optimización**         Inline TVF puede ser    Muy optimizables para
-                           optimizada; scalar UDF  tareas transaccionales;
-                           tradicionales pueden    control total de
-                           penalizar               transacciones
-
-  **Manejo de errores /    Limitado                Completo (TRY/CATCH,
-  control transaccional**                          THROW, control de
-                                                   transacciones)
-
-  **Seguridad/Permisos**   Ejecutan con contexto   Similar, pero más
-                           de invocador a menos    flexibilidad en
-                           que se configure        esquemas de ejecución
-  ------------------------------------------------------------------------
 
 Una vez comprendidos los fundamentos teóricos de las funciones
 almacenadas resulta fundamental observar cómo se aplican en un escenario
