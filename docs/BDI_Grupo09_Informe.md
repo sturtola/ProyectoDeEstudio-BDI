@@ -126,15 +126,159 @@ El sistema abarca la gestión completa del **intercambio de comisiones**, incluy
 A continuación se desarrollan los conceptos teóricos correspondientes a los temas asignados al equipo, aplicados al proyecto SIC-UNNE (Sistema de Intercambio de Comisiones). Cada tema aborda técnicas y herramientas avanzadas del motor SQL Server que permiten asegurar la eficiencia, consistencia, seguridad y trazabilidad del sistema.
 
 ### TEMA 1 — Procedimientos y Funciones Almacenadas
-Los procedimientos almacenados y las funciones constituyen herramientas fundamentales dentro del motor de base de datos para encapsular lógica de negocio, mejorar el rendimiento del sistema y garantizar operaciones seguras y consistentes.
 
 #### **1. Introducción**
 
+En el desarrollo de sistemas basados en bases de datos relacionales, la eficiencia, la seguridad y la consistencia de la lógica de negocio son factores fundamentales para garantizar un funcionamiento correcto y un mantenimiento adecuado del sistema. En este contexto, los **procedimientos almacenados (Stored Procedures, SP)** y las **funciones almacenadas (User-Defined Functions, UDF)** constituyen herramientas esenciales proporcionadas por los motores de bases de datos, como SQL Server, para encapsular, centralizar y optimizar operaciones que se ejecutan de manera recurrente.
+
+Los procedimientos están orientados a flujos transaccionales y operaciones que modifican datos, mientras que las funciones se emplean principalmente para cálculos reutilizables, validaciones y encapsulación de expresiones sin efectos secundarios.
+
+Comprender el rol de ambos componentes y su correcta aplicación resulta central para el diseño y la optimización de sistemas robustos, especialmente en proyectos como SIC-UNNE, donde la gestión de usuarios, roles, estados y validaciones requiere lógica bien estructurada y altamente confiable. 
+
 #### **2. Procedimientos Almacenados**
+
+Un **procedimiento almacenado** es un conjunto de instrucciones SQL predefinidas y almacenadas en la base de datos, que puede ejecutarse cuando se necesite. Actúa como una especie de programa interno de la base de datos que permite agrupar consultas, operaciones de manipulación de datos, validaciones, cálculos o incluso lógica de negocio, que sirve para garantizar la integridad de los datos, mejorar la seguridad, reducir errores en tiempo de ejecución, entre otras.
+Ejemplo:
+```sql
+CREATE PROCEDURE sp_insertar_estudiante
+    @nombre NVARCHAR(100),
+    @apellido NVARCHAR(100),
+    @documento INT,
+    @correo NVARCHAR(100),
+    @contrasena NVARCHAR(100),
+    @id_carrera INT,
+    @constancia_url NVARCHAR(255),
+    @fecha_constancia DATETIME,
+    @newId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @hash VARBINARY(32);
+
+    BEGIN TRY
+        BEGIN TRAN;
+
+        -- VALIDACIONES
+        IF EXISTS (SELECT 1 FROM Usuario WHERE documento = @documento)
+        BEGIN
+            RAISERROR('Documento ya registrado.', 16, 1);
+            ROLLBACK TRAN; RETURN;
+        END
+
+        IF EXISTS (SELECT 1 FROM Usuario WHERE correo = @correo)
+        BEGIN
+            RAISERROR('Correo ya registrado.', 16, 1);
+            ROLLBACK TRAN; RETURN;
+        END
+
+        IF NOT EXISTS (SELECT 1 FROM Carrera WHERE id_carrera = @id_carrera)
+        BEGIN
+            RAISERROR('Carrera no encontrada.', 16, 1);
+            ROLLBACK TRAN; RETURN;
+        END
+
+        -- HASH DE CONTRASEÑA
+        SET @hash = HASHBYTES('SHA2_512', @contrasena);
+
+        -- INSERTAR USUARIO
+        INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, estado, rol, id_carrera)
+        VALUES (@nombre, @apellido, @documento, @correo, @hash, 0, 'Estudiante', @id_carrera);
+
+        SET @newId = SCOPE_IDENTITY();
+
+        -- INSERTAR CONSTANCIA SOLO SI NO ES NULL
+        IF @constancia_url IS NOT NULL AND @fecha_constancia IS NOT NULL
+        BEGIN
+            INSERT INTO Constancia (id_constancia, constancia_url, fecha_constancia)
+            VALUES (@newId, @constancia_url, @fecha_constancia);
+
+            
+            PRINT 'Estudiante registrado con constancia.';
+        END
+        ELSE
+        BEGIN
+            PRINT 'Estudiante registrado sin constancia.';
+        END
+
+        -- FIN
+        COMMIT TRAN;
+        PRINT 'Registro completado exitosamente.';
+
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 
+            ROLLBACK TRAN;
+
+        -- Propaga el error original
+        THROW;
+    END CATCH
+END
+GO
+
+```
+Este procedimiento almacenado luego se ejecuta de la siguiente manera:
+```sql
+DECLARE @est7 INT, @est8 INT, @est9 INT;
+EXEC sp_insertar_estudiante 'Claudia','Morales',30000001,'moralesc@email.com','est123', 1, NULL, NULL, @est7 OUTPUT;
+EXEC sp_insertar_estudiante 'Ramiro','Centella',30000002,'ramiroc.m@email.com','est234', 1, 'docs/constancias/ramiro.pdf', GETDATE(), @est8 OUTPUT;
+EXEC sp_insertar_estudiante 'Mia','Soto',30000003,'mia.s@email.com','est345', 1, NULL, NULL, @est9 OUTPUT;
+```
 
 #### **3. Funciones Almacenadas**
 
+Una **función almacenada** es un objeto de la base de datos que encapsula una operación o cálculo y devuelve un valor (o una tabla). Se define una vez en la base de datos y puede reutilizarse desde consultas (SELECT), procedimientos, vistas, o desde la aplicación. A diferencia de un procedimiento almacenado, una función está pensada para calcular y devolver información y no para realizar efectos secundarios (es decir, normalmente no modifica datos).
+Ejemplo:
+```sql
+CREATE FUNCTION fn_calcularEdad (
+    @fechaNacimiento DATE
+)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @edad INT;
+
+    SET @edad = DATEDIFF(YEAR, @fechaNacimiento, GETDATE());
+
+    -- Ajuste si no cumplió años aún
+    IF (MONTH(@fechaNacimiento) > MONTH(GETDATE()))
+        OR (MONTH(@fechaNacimiento) = MONTH(GETDATE()) AND DAY(@fechaNacimiento) > DAY(GETDATE()))
+        SET @edad = @edad - 1;
+
+    RETURN @edad;
+END;
+GO
+```
+
 #### **4. Aplicación en el SIC-UNNE**
+
+Al tratarse de una plataforma que administra usuarios, roles, estados de verificación, constancias, permisos e intercambios entre comisiones, es fundamental que las reglas de negocio estén correctamente encapsuladas en la base de datos, evitando que operaciones críticas dependan exclusivamente de la capa de aplicación.
+
+Dentro del SIC-UNNE, algunos de los procedimientos almacenados permiten implementar flujos como:
+
+- El registro de estudiantes con validaciones estrictas de documento, correo y carrera
+
+- El registro de personal administrativo con restricciones de permisos
+
+- La actualización de roles (Administrador, Verificador, Estudiante)
+
+- El control de cambios de estado según reglas específicas
+
+- La ejecución de transacciones completas con manejo de errores mediante TRY/CATCH para garantizar la integridad de los datos.
+
+Por su parte, las funciones almacenadas aportan cálculos reutilizables y determinísticos (como el cálculo de edad, verificación de condiciones o generación de valores derivados) que se emplean en consultas, validaciones o vistas sin necesidad de duplicar lógica en distintas partes del sistema.
+La incorporación de estos elementos en la base de datos asegura que:
+
+- Las validaciones críticas no puedan ser eludidas por la aplicación
+
+- Las reglas se mantengan centralizadas y fáciles de actualizar
+
+- El sistema sea más seguro ante accesos externos
+
+- Las operaciones frecuentes tengan un mejor rendimiento gracias a la reutilización de planes de ejecución
+
+En conjunto, los procedimientos y funciones almacenadas constituyen la base que sostiene la integridad operativa del SIC-UNNE, permitiendo que los procesos de registro, verificación, activación y control de usuarios se ejecuten de forma confiable y escalable.
 
 ### TEMA 2 — Optimización mediante Índices
 
