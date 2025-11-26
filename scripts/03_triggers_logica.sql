@@ -5,7 +5,34 @@
 ****************************************************************************************/
 USE SIC_UNNE;
 GO
+-- 1. TRIGGER DE HABILITACIÓN (Valida fecha de constancia)
+CREATE OR ALTER TRIGGER tr_estudiante_verificar_constancia
+ON Constancia
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Definimos fecha límite (6 meses atrás)
+    DECLARE @fechaLimite DATE = DATEADD(MONTH, -6, GETDATE());
 
+    -- Caso 1: Constancia NUEVA -> Habilitar Usuario (Estado 1)
+    UPDATE U
+    SET estado = 1
+    FROM Usuario U  
+    INNER JOIN inserted I ON U.id_usuario = I.id_usuario 
+    WHERE I.fecha_constancia >= @fechaLimite;
+
+    -- Caso 2: Constancia VIEJA -> Deshabilitar Usuario (Estado 0)
+    UPDATE U
+    SET estado = 0
+    FROM Usuario U
+    INNER JOIN inserted I ON U.id_usuario = I.id_usuario
+    WHERE I.fecha_constancia < @fechaLimite;
+    
+    PRINT '>> Trigger de Constancia ejecutado: Estados de usuario actualizados.';
+END
+GO
 -- TRIGGER DE MATCHMAKING
 CREATE OR ALTER TRIGGER TR_ListaEspera_TryMatchOnInsert
 ON Lista_Espera

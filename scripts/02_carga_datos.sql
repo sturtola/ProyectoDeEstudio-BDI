@@ -23,7 +23,7 @@ BEGIN TRY
     -- Declaración de variables para IDs
     DECLARE @idAdmin INT, @idVerif INT;
     DECLARE @idEst1_Gonzalez INT, @idEst2_Ramirez INT, @idEst3_Ibanez_Invalido INT;
-    DECLARE @idEst4_Lopez INT;
+    DECLARE @idEst4_Lopez INT, @idEst5_Martinez INT,@idEst6_Pascal INT, @idEst7_Vergara INT;
     
     DECLARE @idEdificioCentral INT;
     DECLARE @idFacuIngenieria INT;
@@ -110,8 +110,15 @@ BEGIN TRY
 
     -- Estudiante 4 (Lucas Lopez - Comision A, igual que Gonzalez)
     INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera) 
-    VALUES ('Lucas', 'Lopez', 32000111, 'l.lopez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI);
-    SET @idEst4_Lopez = SCOPE_IDENTITY();
+    VALUES ('Lucas', 'Lopez', 32000111, 'l.lopez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+       -- NUEVOS USUARIOS
+            ('Martina', 'Martinez', 35000111, 'm.martinez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+            ('Pedro', 'Pascal', 36000111, 'p.pascal@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+            ('Sofia', 'Vergara', 37000111, 's.vergara@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst4_Lopez = (SELECT id_usuario FROM Usuario WHERE apellido='Lopez');
+    SET @idEst5_Martinez = (SELECT id_usuario FROM Usuario WHERE apellido='Martinez');
+    SET @idEst6_Pascal = (SELECT id_usuario FROM Usuario WHERE apellido='Pascal');
+    SET @idEst7_Vergara = (SELECT id_usuario FROM Usuario WHERE apellido='Vergara');
 
     -- Activación Manual de Admin/Verificador (necesario por el DEFAULT 0)
     PRINT 'Cargando: 2.1. Activación manual de Admin y Verificador...';
@@ -131,7 +138,10 @@ BEGIN TRY
     INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
     VALUES (@idEst1_Gonzalez, 'constancias/gonzalez.pdf', @fechaValida),
            (@idEst2_Ramirez, 'constancias/ramirez.pdf', @fechaValida),
-           (@idEst4_Lopez, 'constancias/lopez.pdf', @fechaValida);
+           (@idEst4_Lopez, 'constancias/lopez.pdf', @fechaValida),
+           (@idEst5_Martinez, 'ok.pdf', @fechaValida),
+           (@idEst6_Pascal, 'ok.pdf', @fechaValida),
+           (@idEst7_Vergara, 'ok.pdf', @fechaValida);
 
     -- Caso INVÁLIDO (El trigger debería dejar Usuario.estado = 0)
     INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
@@ -147,7 +157,10 @@ BEGIN TRY
     INSERT INTO Inscripcion (id_comision, id_usuario)
     VALUES (@idComision_BD1_A, @idEst1_Gonzalez),  -- Gonzalez ('G') en Com A (A-M) -> OK
            (@idComision_BD1_B, @idEst2_Ramirez),   -- Ramirez ('R') en Com B (N-Z) -> OK
-           (@idComision_BD1_A, @idEst4_Lopez);    -- Lucas en A
+           (@idComision_BD1_A, @idEst4_Lopez),    -- Lucas en A
+           (@idComision_BD1_B, @idEst5_Martinez), -- B (Nueva)
+           (@idComision_BD1_A, @idEst6_Pascal),   -- A (Nuevo)
+           (@idComision_BD1_A, @idEst7_Vergara);  -- A (Nueva)
            
     -- (No inscribimos a Ibañez porque su trigger de constancia lo dejó en estado = 0)
 
@@ -155,30 +168,34 @@ BEGIN TRY
     * 5. LISTA DE ESPERA (PRUEBA DE TRIGGER DE MATCHMAKING)
     ****************************************************************************************/
     PRINT 'Cargando: 5. Lista de Espera...';
-    PRINT '   (Se debe disparar el trigger TR_ListaEspera_TryMatchOnInsert y el SP SIC_GenerarMatches)';
-
-    -- Escenario 1: Match Perfecto (Gonzalez vs Ramirez)
-    PRINT '   -> Creando par (Gonzalez A->B y Ramirez B->A)';
-    
-    -- Estudiante 1 (Gonzalez, Com A) quiere ir a Com B
+    -- CASO 1: Match Inmediato
+    PRINT ' -> Gonzalez (A->B) espera...';
     INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
     VALUES ('En espera', @idEst1_Gonzalez, @idComision_BD1_A, @idComision_BD1_B);
     
-    -- Estudiante 2 (Ramirez, Com B) quiere ir a Com A
+    PRINT ' -> Ramirez (B->A) entra. ¡MATCH con Gonzalez!';
     INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
     VALUES ('En espera', @idEst2_Ramirez, @idComision_BD1_B, @idComision_BD1_A);
-    -- (El trigger TR_ListaEspera_TryMatchOnInsert DEBE crear la Propuesta #1 aquí)
 
-   -- C. Lucas quiere ir a la B
-    PRINT ' -> Lucas entra a la lista (A->B). Nadie disponible (Gonzalez ya hizo match). Se queda esperando.';
+    -- CASO 2: Match Diferido (El que espera encuentra novia despues)
+    PRINT ' -> Lucas Lopez (A->B) espera... (Nadie disponible)';
     INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
     VALUES ('En espera', @idEst4_Lopez, @idComision_BD1_A, @idComision_BD1_B);
-    -- Resultado esperado: Lucas queda en estado 'En espera'.
-    
-    -- Fin de la transacción
-    PRINT 'Confirmando transacción (COMMIT)...';
-    COMMIT TRAN CargaDatos;
-    
+
+    PRINT ' -> Martina Martinez (B->A) entra. ¡MATCH con Lucas Lopez!';
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst5_Martinez, @idComision_BD1_B, @idComision_BD1_A);
+
+    -- CASO 3: Cola de Espera (Sin match)
+    PRINT ' -> Pedro Pascal (A->B) espera...';
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst6_Pascal, @idComision_BD1_A, @idComision_BD1_B);
+
+    PRINT ' -> Sofia Vergara (A->B) espera... (Detras de Pedro)';
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst7_Vergara, @idComision_BD1_A, @idComision_BD1_B);
+
+    COMMIT TRAN CargaDatos;    
     PRINT '';
     PRINT '==================================================';
     PRINT '¡LOTE DE CARGA FINALIZADO EXITOSAMENTE!';
@@ -260,4 +277,51 @@ SELECT
     correo, 
     contrasena AS [Hash (VARBINARY(64))]
 FROM Usuario;
+GO
+
+/****************************************************************************************
+* 7. PRUEBAS FINALES (VISUALIZACIÓN CLARA)
+****************************************************************************************/
+PRINT '';
+PRINT '=======================================================';
+PRINT '   REPORTE DE ESTADO DEL SISTEMA (NOMBRES REALES)';
+PRINT '=======================================================';
+
+PRINT '';
+PRINT '>>> 1. PROPUESTAS DE INTERCAMBIO (MATCHES) <<<';
+PRINT 'Debería haber 2 parejas: Gonzalez-Ramirez y Lopez-Martinez';
+
+SELECT 
+    P.id_propuesta,
+    P.estado AS [Estado],
+    -- Estudiante 1
+    U1.apellido + ' ' + U1.nombre AS [Estudiante 1],
+    C1_Dest.nombre AS [Quiere ir a],
+    -- Estudiante 2
+    ' <---> ' AS [VS],
+    U2.apellido + ' ' + U2.nombre AS [Estudiante 2],
+    C2_Dest.nombre AS [Quiere ir a]
+FROM Propuesta P
+JOIN Lista_Espera L1 ON P.id_listaEspera_1 = L1.id_lista_espera
+JOIN Usuario U1 ON L1.id_usuario = U1.id_usuario
+JOIN Comision C1_Dest ON L1.id_comision_destino = C1_Dest.id_comision
+JOIN Lista_Espera L2 ON P.id_listaEspera_2 = L2.id_lista_espera
+JOIN Usuario U2 ON L2.id_usuario = U2.id_usuario
+JOIN Comision C2_Dest ON L2.id_comision_destino = C2_Dest.id_comision;
+
+PRINT '';
+PRINT '>>> 2. GENTE SOLA EN LISTA DE ESPERA <<<';
+PRINT 'Deberían estar Pascal y Vergara esperando';
+
+SELECT 
+    L.id_lista_espera,
+    U.apellido + ' ' + U.nombre AS [Estudiante],
+    C_Orig.nombre AS [Actual],
+    C_Dest.nombre AS [Busca],
+    L.estado
+FROM Lista_Espera L
+JOIN Usuario U ON L.id_usuario = U.id_usuario
+JOIN Comision C_Orig ON L.id_comision_origen = C_Orig.id_comision
+JOIN Comision C_Dest ON L.id_comision_destino = C_Dest.id_comision
+WHERE L.estado = 'En espera';
 GO
