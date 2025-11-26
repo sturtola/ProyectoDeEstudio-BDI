@@ -75,4 +75,101 @@ BEGIN
         PRINT '>> Usuario ingresado a Lista de Espera (Sin coincidencia por ahora).';
     END
 END
+
+-- ============================================================================
+-- 3. TRIGGER DE ACEPTACIÓN DE PROPUESTAS (Ejecuta el intercambio)
+-- ============================================================================
+CREATE OR ALTER TRIGGER TR_RespuestaPropuesta_ProcesarAceptacion
+ON Respuesta_Propuesta
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Verificar si AMBOS estudiantes ya aceptaron
+    DECLARE @idPropuesta INT = (SELECT id_propuesta FROM inserted);
+    DECLARE @totalRespuestas INT = (SELECT COUNT(*) FROM Respuesta_Propuesta WHERE id_propuesta = @idPropuesta);
+    DECLARE @totalAceptadas INT = (SELECT COUNT(*) FROM Respuesta_Propuesta WHERE id_propuesta = @idPropuesta AND decision = 'Aceptar');
+    
+    -- Si hay 2 respuestas y AMBAS son "Aceptar" -> EJECUTAR INTERCAMBIO
+    IF (@totalRespuestas = 2 AND @totalAceptadas = 2)
+    BEGIN
+        PRINT '   >> ¡AMBOS ACEPTARON! Ejecutando intercambio...';
+        
+        -- Obtener los IDs necesarios
+        DECLARE @idLE1 INT, @idLE2 INT, @idUsuario1 INT, @idUsuario2 INT;
+        DECLARE @idComOrigen1 INT, @idComDestino1 INT, @idComOrigen2 INT, @idComDestino2 INT;
+        
+        SELECT 
+            @idLE1 = id_listaEspera_1,
+            @idLE2 = id_listaEspera_2
+        FROM Propuesta WHERE id_propuesta = @idPropuesta;
+        
+        SELECT @idUsuario1 = id_usuario, @idComOrigen1 = id_comision_origen, @idComDestino1 = id_comision_destino
+        FROM Lista_Espera WHERE id_lista_espera = @idLE1;
+        
+        SELECT @idUsuario2 = id_usuario, @idComOrigen2 = id_comision_origen, @idComDestino2 = id_comision_destino
+        FROM Lista_Espera WHERE id_lista_espera = @idLE2;
+        
+        -- ========== PASO 1: Dar de baja inscripciones actuales ==========
+        UPDATE Inscripcion 
+        SET estado = 0, fecha_baja = CAST(GETDATE() AS DATE)
+        WHERE id_usuario = @idUsuario1 AND id_comision = @idComOrigen1 AND estado = 1;
+        
+        UPDATE Inscripcion 
+        SET estado = 0, fecha_baja = CAST(GETDATE() AS DATE)
+        WHERE id_usuario = @idUsuario2 AND id_comision = @idComOrigen2 AND estado = 1;
+        
+        PRINT '     ✓ Inscripciones antiguas dadas de baja.';
+        
+        -- ========== PASO 2: Crear nuevas inscripciones ==========
+        INSERT INTO Inscripcion (id_comision, id_usuario, estado)
+        VALUES (@idComDestino1, @idUsuario1, 1),
+               (@idComDestino2, @idUsuario2, 1);
+        
+        PRINT '     ✓ Nuevas inscripciones creadas.';
+        
+        -- ========== PASO 3: Actualizar estado de propuesta ==========
+        UPDATE Propuesta 
+        SET estado = 'Aceptada', fecha_baja = GETDATE()
+        WHERE id_propuesta = @idPropuesta;
+        
+        PRINT '     ✓ Propuesta marcada como Aceptada.';
+        
+        -- ========== PASO 4: Finalizar listas de espera ==========
+        UPDATE Lista_Espera 
+        SET estado = 'Finalizada', fecha_baja = CAST(GETDATE() AS DATE)
+        WHERE id_lista_espera IN (@idLE1, @idLE2);
+        
+        PRINT '     ✓ Listas de espera finalizadas.';
+        
+        -- ========== PASO 5: Generar comprobante ==========
+        INSERT INTO Comprobante (id_propuesta, id_usuario_1, id_usuario_2)
+        VALUES (@idPropuesta, 
+                IIF(@idUsuario1 < @idUsuario2, @idUsuario1, @idUsuario2),
+                IIF(@idUsuario1 < @idUsuario2, @idUsuario2, @idUsuario1));
+        
+        PRINT '     ✓ Comprobante generado.';
+        PRINT '   >> ¡INTERCAMBIO COMPLETADO EXITOSAMENTE!';
+    END
+    ELSE IF (@totalRespuestas = 2 AND @totalAceptadas < 2)
+    BEGIN
+        -- Al menos uno rechazó
+        PRINT '   >> Propuesta rechazada por al menos un estudiante.';
+        
+        UPDATE Propuesta 
+        SET estado = 'Rechazada', fecha_baja = GETDATE()
+        WHERE id_propuesta = @idPropuesta;
+        
+        -- Volver a poner las listas en "En espera"
+        UPDATE Lista_Espera 
+        SET estado = 'En espera'
+        WHERE id_lista_espera IN (
+            SELECT id_listaEspera_1 FROM Propuesta WHERE id_propuesta = @idPropuesta
+            UNION
+            SELECT id_listaEspera_2 FROM Propuesta WHERE id_propuesta = @idPropuesta
+        );
+    END
+END
+GO
 GO
