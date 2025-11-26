@@ -127,8 +127,9 @@ GO
 -- Tabla Constancia (para rol estudiante)
 
 CREATE TABLE Constancia (
-    id_constancia INT
-       CONSTRAINT pk_id_constancia PRIMARY KEY
+    id_constancia INT IDENTITY
+       CONSTRAINT pk_id_constancia PRIMARY KEY,
+    id_usuario INT NOT NULL
        CONSTRAINT fk_constancia_usuario FOREIGN KEY REFERENCES Usuario(id_usuario),
     constancia_url NVARCHAR(200) NOT NULL,
     fecha_constancia DATE NOT NULL
