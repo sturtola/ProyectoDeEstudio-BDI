@@ -233,6 +233,26 @@ ADD
     );
 GO
 
+-- Tabla Asignatura-Profesor
+
+CREATE TABLE Asignatura_Profesor (
+    id_asignatura INT NOT NULL
+        CONSTRAINT fk_asigProf_asignatura FOREIGN KEY REFERENCES Asignatura(id_asignatura),
+    id_profesor INT NOT NULL
+        CONSTRAINT fk_asigProf_profesor FOREIGN KEY REFERENCES Profesor(id_profesor),
+        CONSTRAINT pk_asignatura_profesor PRIMARY KEY (id_asignatura, id_profesor)
+)
+
+-- Tabla Comision-Profesor
+
+CREATE TABLE Comision_Profesor (
+    id_comision INT NOT NULL
+        CONSTRAINT fk_comisionProf_comision FOREIGN KEY REFERENCES Comision(id_comision),
+    id_profesor INT NOT NULL
+        CONSTRAINT fk_comisionProf_profesor FOREIGN KEY REFERENCES Profesor(id_profesor),
+        CONSTRAINT pk_comision_profesor PRIMARY KEY (id_comision, id_profesor)
+)
+
 -- Tabla Aula
 
 CREATE TABLE Aula (
