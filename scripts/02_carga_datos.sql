@@ -10,7 +10,7 @@
 USE SIC_UNNE;
 GO
 
---SET NOCOUNT ON;     -- Evita que SQL Server devuelva el conteo de filas afectadas
+SET NOCOUNT ON;     -- Evita que SQL Server devuelva el conteo de filas afectadas
 SET XACT_ABORT ON;  -- Asegura que, si hay un error, la transacción completa haga ROLLBACK
 
 PRINT 'Iniciando: 02_carga_datos.sql...';
@@ -23,6 +23,7 @@ BEGIN TRY
     -- Declaración de variables para IDs
     DECLARE @idAdmin INT, @idVerif INT;
     DECLARE @idEst1_Gonzalez INT, @idEst2_Ramirez INT, @idEst3_Ibanez_Invalido INT;
+    DECLARE @idEst4_Lopez INT;
     
     DECLARE @idEdificioCentral INT;
     DECLARE @idFacuIngenieria INT;
@@ -107,6 +108,11 @@ BEGIN TRY
     VALUES ('Ines', 'Ibañez', 34555666, 'i.ibañez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
     SET @idEst3_Ibanez_Invalido = SCOPE_IDENTITY();
 
+    -- Estudiante 4 (Lucas Lopez - Comision A, igual que Gonzalez)
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera) 
+    VALUES ('Lucas', 'Lopez', 32000111, 'l.lopez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst4_Lopez = SCOPE_IDENTITY();
+
     -- Activación Manual de Admin/Verificador (necesario por el DEFAULT 0)
     PRINT 'Cargando: 2.1. Activación manual de Admin y Verificador...';
     UPDATE Usuario SET estado = 1 WHERE id_usuario IN (@idAdmin, @idVerif);
@@ -122,12 +128,13 @@ BEGIN TRY
     DECLARE @fechaVencida DATE = DATEADD(MONTH, -7, @fechaHoy); -- Vencida
 
     -- Casos VÁLIDOS (El trigger debería poner Usuario.estado = 1)
-    INSERT INTO Constancia (id_constancia, constancia_url, fecha_constancia)
+    INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
     VALUES (@idEst1_Gonzalez, 'constancias/gonzalez.pdf', @fechaValida),
-           (@idEst2_Ramirez, 'constancias/ramirez.pdf', @fechaValida);
+           (@idEst2_Ramirez, 'constancias/ramirez.pdf', @fechaValida),
+           (@idEst4_Lopez, 'constancias/lopez.pdf', @fechaValida);
 
     -- Caso INVÁLIDO (El trigger debería dejar Usuario.estado = 0)
-    INSERT INTO Constancia (id_constancia, constancia_url, fecha_constancia)
+    INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
     VALUES (@idEst3_Ibanez_Invalido, 'constancias/ibanez.pdf', @fechaVencida);
 
     /****************************************************************************************
@@ -139,7 +146,8 @@ BEGIN TRY
     -- Inscribimos a los estudiantes que AHORA SÍ están VÁLIDOS (1 y 2)
     INSERT INTO Inscripcion (id_comision, id_usuario)
     VALUES (@idComision_BD1_A, @idEst1_Gonzalez),  -- Gonzalez ('G') en Com A (A-M) -> OK
-           (@idComision_BD1_B, @idEst2_Ramirez);   -- Ramirez ('R') en Com B (N-Z) -> OK
+           (@idComision_BD1_B, @idEst2_Ramirez),   -- Ramirez ('R') en Com B (N-Z) -> OK
+           (@idComision_BD1_A, @idEst4_Lopez);    -- Lucas en A
            
     -- (No inscribimos a Ibañez porque su trigger de constancia lo dejó en estado = 0)
 
@@ -161,6 +169,11 @@ BEGIN TRY
     VALUES ('En espera', @idEst2_Ramirez, @idComision_BD1_B, @idComision_BD1_A);
     -- (El trigger TR_ListaEspera_TryMatchOnInsert DEBE crear la Propuesta #1 aquí)
 
+   -- C. Lucas quiere ir a la B
+    PRINT ' -> Lucas entra a la lista (A->B). Nadie disponible (Gonzalez ya hizo match). Se queda esperando.';
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst4_Lopez, @idComision_BD1_A, @idComision_BD1_B);
+    -- Resultado esperado: Lucas queda en estado 'En espera'.
     
     -- Fin de la transacción
     PRINT 'Confirmando transacción (COMMIT)...';
@@ -205,7 +218,7 @@ GO
 -- PRUEBA 1: Verificación del Trigger de Habilitación (Constancia)
 PRINT '';
 PRINT '--- PRUEBA 1: Trigger de Habilitación (tr_estudiante_verificar_constancia)';
-PRINT '   (Gonzalez y Ramirez deben tener estado=1. Ibañez debe tener estado=0)';
+PRINT '   (Gonzalez, Ramirez y Lopez deben tener estado=1. Ibañez debe tener estado=0)';
 SELECT 
     id_usuario, 
     nombre, 
@@ -218,7 +231,7 @@ GO
 -- PRUEBA 2: Verificación del Trigger de Matchmaking (TR_ListaEspera_TryMatchOnInsert)
 PRINT '';
 PRINT '--- PRUEBA 2: Trigger de Matchmaking (TR_ListaEspera_TryMatchOnInsert)';
-PRINT '   (Debe existir 1 Propuesta en estado "Pendiente")';
+PRINT '   (Debe existir 1 Propuesta en estado "Pendiente" entre Gonzalez y Ramirez)';
 SELECT 
     id_propuesta, 
     estado, 
@@ -229,13 +242,13 @@ WHERE estado = 'Pendiente';
 GO
 
 PRINT '';
-PRINT '   (Las 2 Listas de Espera deben estar en estado "Pendiente")';
+PRINT '   (Listas: Gonzalez y Ramirez "Pendiente". Lopez debe estar "En espera")';
 SELECT 
     id_lista_espera, 
     estado, 
     id_usuario 
 FROM Lista_Espera 
-WHERE estado = 'Pendiente';
+WHERE estado IN ('Pendiente', 'En espera');
 GO
 
 -- PRUEBA 3: Verificación del Hasheo de Contraseñas
@@ -248,4 +261,3 @@ SELECT
     contrasena AS [Hash (VARBINARY(64))]
 FROM Usuario;
 GO
-
