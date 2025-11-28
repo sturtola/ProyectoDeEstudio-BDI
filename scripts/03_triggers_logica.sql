@@ -75,7 +75,7 @@ BEGIN
         PRINT '>> Usuario ingresado a Lista de Espera (Sin coincidencia por ahora).';
     END
 END
-
+go
 -- ============================================================================
 -- 3. TRIGGER DE ACEPTACIÓN DE PROPUESTAS (Ejecuta el intercambio)
 -- ============================================================================

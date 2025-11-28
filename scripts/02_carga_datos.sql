@@ -79,93 +79,128 @@ BEGIN TRY
     VALUES ('Ricardo', 'Perez', 15111222, 'r.perez@prof.unne.edu.ar', 1);
 
     /****************************************************************************************
-    * 2. USUARIOS
+    * 2. USUARIOS (con HASHBYTES)
     ****************************************************************************************/
     PRINT 'Cargando: 2. Usuarios (Todos nacen inactivos - estado 0)...';
     
     -- Admin (estado 0)
-    EXEC sp_insertar_personal 'Admin', 'Sistema', 9999999, 'admin@unne.edu.ar', 'AdminPass123!', @idAdmin OUTPUT;
-    
-    -- Debemos activar manualmente al admin
-    ALTER TABLE Usuario WHERE id_usuario = @idAdmin SET estado = 1;
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Admin', 'Sistema', 9999999, 'admin@unne.edu.ar', HASHBYTES('SHA2_512', 'AdminPass123!'), 'Administrador', NULL);
+    SET @idAdmin = SCOPE_IDENTITY();
 
     -- Verificador (estado 0)
-    EXEC sp_insertar_personal 'Valeria', 'Verificadora', 8888888, 'verificador@unne.edu.ar', 'VerifPass123!', @idVerif OUTPUT;
-    
-    -- El admin habilita al verificador
-    EXEC sp_actualizar_estado @idAdmin, @idVerif, 1;
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Valeria', 'Verificadora', 8888888, 'verificador@unne.edu.ar', HASHBYTES('SHA2_512', 'VerifPass123!'), 'Verificador', NULL);
+    SET @idVerif = SCOPE_IDENTITY();
 
     -- Estudiante 1 (VÁLIDO, 'G' para Com A)
-    EXEC sp_insertar_estudiante 'Gabriel', 'Gonzalez', 30111222, 'g.gonzalez@alu.unne.edu.ar', 'UserPass123!', @idCarreraLSI, 'constancias/gonzalez.pdf', GETDATE(), @idEst1_Gonzalez OUTPUT;
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Gabriel', 'Gonzalez', 30111222, 'g.gonzalez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst1_Gonzalez = SCOPE_IDENTITY();
     
     -- Estudiante 2 (VÁLIDO, 'R' para Com B)
-    EXEC sp_insertar_estudiante 'Romina', 'Ramirez', 31222333, 'r.ramirez@alu.unne.edu.ar','UserPass123!', @idCarreraLSI, 'constancias/ramirez.pdf', GETDATE(), @idEst2_Ramirez OUTPUT;
- 
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Romina', 'Ramirez', 31222333, 'r.ramirez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst2_Ramirez = SCOPE_IDENTITY();
     
     -- Estudiante 3 (INVÁLIDO - Constancia Vencida)
-    EXEC sp_insertar_estudiante 'Ines', 'Ibañez', 34555666, 'i.ibañez@alu.unne.edu.ar', 'UserPass123!', @idCarreraLSI, 'constancias/ibanez.pdf', DATEADD(MONTH, -7, GETDATE()), @idEst3_Ibanez_Invalido OUTPUT;
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera)
+    VALUES ('Ines', 'Ibañez', 34555666, 'i.ibañez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'UserPass123!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst3_Ibanez_Invalido = SCOPE_IDENTITY();
 
     -- Estudiante 4 (Lucas Lopez - Comision A, igual que Gonzalez)
-    EXEC sp_insertar_estudiante 'Lucas', 'Lopez', 32000111, 'l.lopez@alu.unne.edu.ar', 'Pass!', @idCarreraLSI, 'constancias/lopez.pdf', GETDATE(), @idEst4_Lopez OUTPUT;
+    INSERT INTO Usuario (nombre, apellido, documento, correo, contrasena, rol, id_carrera) 
+    VALUES ('Lucas', 'Lopez', 32000111, 'l.lopez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+       -- NUEVOS USUARIOS
+            ('Martina', 'Martinez', 35000111, 'm.martinez@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+            ('Pedro', 'Pascal', 36000111, 'p.pascal@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI),
+            ('Sofia', 'Vergara', 37000111, 's.vergara@alu.unne.edu.ar', HASHBYTES('SHA2_512', 'Pass!'), 'Estudiante', @idCarreraLSI);
+    SET @idEst4_Lopez = (SELECT id_usuario FROM Usuario WHERE apellido='Lopez');
+    SET @idEst5_Martinez = (SELECT id_usuario FROM Usuario WHERE apellido='Martinez');
+    SET @idEst6_Pascal = (SELECT id_usuario FROM Usuario WHERE apellido='Pascal');
+    SET @idEst7_Vergara = (SELECT id_usuario FROM Usuario WHERE apellido='Vergara');
 
-    -- Estudiante 5, 6, 7 (Nuevos usuarios para pruebas de lista de espera)
-    EXEC sp_insertar_estudiante 'Martina', 'Martinez', 35000111, 'm.martinez@alu.unne.edu.ar', 'Pass!', @idCarreraLSI, 'ok.pdf', GETDATE(), @idEst5_Martinez OUTPUT;
+    -- Activación Manual de Admin/Verificador (necesario por el DEFAULT 0)
+    PRINT 'Cargando: 2.1. Activación manual de Admin y Verificador...';
+    UPDATE Usuario SET estado = 1 WHERE id_usuario IN (@idAdmin, @idVerif);
 
-    EXEC sp_insertar_estudiante 'Pedro', 'Pascal', 36000111, 'p.pascal@alu.unne.edu.ar', 'Pass!', @idCarreraLSI, 'ok.pdf', GETDATE(), @idEst6_Pascal OUTPUT;
+    /****************************************************************************************
+    * 3. CONSTANCIAS (PRUEBA DE TRIGGER DE HABILITACIÓN)
+    ****************************************************************************************/
+    PRINT 'Cargando: 3. Constancias...';
+    PRINT '   (Se debe disparar el trigger tr_estudiante_verificar_constancia)';
+    
+    DECLARE @fechaHoy DATE = GETDATE();
+    DECLARE @fechaValida DATE = DATEADD(DAY, -30, @fechaHoy);  -- Válida
+    DECLARE @fechaVencida DATE = DATEADD(MONTH, -7, @fechaHoy); -- Vencida
 
-    EXEC sp_insertar_estudiante 'Sofia', 'Vergara', 37000111, 's.vergara@alu.unne.edu.ar', 'Pass!', @idCarreraLSI, 'ok.pdf', GETDATE(), @idEst7_Vergara OUTPUT;
-     
-     
-   /****************************************************************************************
-   * 4. INSCRIPCIONES (SP Y PRUEBA DE TRIGGER DE APELLIDO)
-   ****************************************************************************************/
-   PRINT 'Cargando: 4. Inscripciones...';
-   PRINT '   (Se debe disparar el trigger tr_inscripcion_validar_letra_apellido)';  
+    -- Casos VÁLIDOS (El trigger debería poner Usuario.estado = 1)
+    INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
+    VALUES (@idEst1_Gonzalez, 'constancias/gonzalez.pdf', @fechaValida),
+           (@idEst2_Ramirez, 'constancias/ramirez.pdf', @fechaValida),
+           (@idEst4_Lopez, 'constancias/lopez.pdf', @fechaValida),
+           (@idEst5_Martinez, 'ok.pdf', @fechaValida),
+           (@idEst6_Pascal, 'ok.pdf', @fechaValida),
+           (@idEst7_Vergara, 'ok.pdf', @fechaValida);
 
-   -- Inscribimos los estudiantes en las comisiones 
-   EXEC sp_inscribir_estudiante @idEst1_Gonzalez, @idComision_BD1_A;  -- Gonzalez en A
-   EXEC sp_inscribir_estudiante @idEst2_Ramirez, @idComision_BD1_B;   -- Ramirez en B
-   EXEC sp_inscribir_estudiante @idEst4_Lopez, @idComision_BD1_A;    -- Lopez en A
-   EXEC sp_inscribir_estudiante @idEst5_Martinez, @idComision_BD1_B; -- Martinez en B
-   EXEC sp_inscribir_estudiante @idEst6_Pascal, @idComision_BD1_A;   -- Pascal en A
-   EXEC sp_inscribir_estudiante @idEst7_Vergara, @idComision_BD1_A;  -- Vergara en A
+    -- Caso INVÁLIDO (El trigger debería dejar Usuario.estado = 0)
+    INSERT INTO Constancia (id_usuario, constancia_url, fecha_constancia)
+    VALUES (@idEst3_Ibanez_Invalido, 'constancias/ibanez.pdf', @fechaVencida);
 
-   -- Unico alumno por el cual el trigger impide la inscripcion
-   EXEC sp_inscribir_estudiante @idEst3_Ibanez_Invalido, @idComision_BD1_A; -- Ibañez en A (Inválido)
-
+    /****************************************************************************************
+    * 4. INSCRIPCIONES (PRUEBA DE TRIGGER DE APELLIDO)
+    ****************************************************************************************/
+    PRINT 'Cargando: 4. Inscripciones...';
+    PRINT '   (Se debe disparar el trigger tr_inscripcion_validar_letra_apellido)';
+    
+    -- Inscribimos a los estudiantes que AHORA SÍ están VÁLIDOS (1 y 2)
+    INSERT INTO Inscripcion (id_comision, id_usuario)
+    VALUES (@idComision_BD1_A, @idEst1_Gonzalez),  -- Gonzalez ('G') en Com A (A-M) -> OK
+           (@idComision_BD1_B, @idEst2_Ramirez),   -- Ramirez ('R') en Com B (N-Z) -> OK
+           (@idComision_BD1_A, @idEst4_Lopez),    -- Lucas en A
+           (@idComision_BD1_B, @idEst5_Martinez), -- B (Nueva)
+           (@idComision_BD1_A, @idEst6_Pascal),   -- A (Nuevo)
+           (@idComision_BD1_A, @idEst7_Vergara);  -- A (Nueva)
+           
+    -- (No inscribimos a Ibañez porque su trigger de constancia lo dejó en estado = 0)
 
     /****************************************************************************************
     * 5. LISTA DE ESPERA (PRUEBA DE TRIGGER DE MATCHMAKING)
     ****************************************************************************************/
     PRINT 'Cargando: 5. Lista de Espera...';
-
     -- CASO 1: Match Inmediato
     PRINT ' -> Gonzalez (A->B) espera...';
-    EXEC sp_inscribir_en_lista_espera @idEst1_Gonzalez, @idComision_BD1_A, @idComision_BD1_B;
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst1_Gonzalez, @idComision_BD1_A, @idComision_BD1_B);
     
     PRINT ' -> Ramirez (B->A) entra. ¡MATCH con Gonzalez!';
-    EXEC sp_inscribir_en_lista_espera @idEst2_Ramirez, @idComision_BD1_B, @idComision_BD1_A;
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst2_Ramirez, @idComision_BD1_B, @idComision_BD1_A);
 
-    -- CASO 2: Match Diferido 
+    -- CASO 2: Match Diferido (El que espera encuentra novia despues)
     PRINT ' -> Lucas Lopez (A->B) espera... (Nadie disponible)';
-    EXEC sp_inscribir_en_lista_espera @idEst4_Lopez, @idComision_BD1_A, @idComision_BD1_B;
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst4_Lopez, @idComision_BD1_A, @idComision_BD1_B);
 
     PRINT ' -> Martina Martinez (B->A) entra. ¡MATCH con Lucas Lopez!';
-    EXEC sp_inscribir_en_lista_espera @idEst5_Martinez, @idComision_BD1_B, @idComision_BD1_A;
-   
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst5_Martinez, @idComision_BD1_B, @idComision_BD1_A);
 
     -- CASO 3: Cola de Espera (Sin match)
     PRINT ' -> Pedro Pascal (A->B) espera...';
-    EXEC sp_inscribir_en_lista_espera @idEst6_Pascal, @idComision_BD1_A, @idComision_BD1_B;
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst6_Pascal, @idComision_BD1_A, @idComision_BD1_B);
 
     PRINT ' -> Sofia Vergara (A->B) espera... (Detras de Pedro)';
-    EXEC sp_inscribir_en_lista_espera @idEst7_Vergara, @idComision_BD1_A, @idComision_BD1_B;
+    INSERT INTO Lista_Espera (estado, id_usuario, id_comision_origen, id_comision_destino)
+    VALUES ('En espera', @idEst7_Vergara, @idComision_BD1_A, @idComision_BD1_B);
 
     COMMIT TRAN CargaDatos;    
     PRINT '';
     PRINT '==================================================';
     PRINT '¡LOTE DE CARGA FINALIZADO EXITOSAMENTE!';
     PRINT '==================================================';
+
 
 END TRY
 BEGIN CATCH
